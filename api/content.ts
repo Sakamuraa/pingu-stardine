@@ -39,6 +39,14 @@
  *    clipper. Only the search results page mixes all three, which is what makes
  *    it the right place to look for clips.
  *
+ * Six searches are read for the clips rather than one, because a single query is
+ * not a measure of how many clips exist. YouTube ranks by relevance to the
+ * phrasing it was given, so one query mostly returns whichever slice of the web
+ * matches those words: "pingu vtuber" alone came back with 19 results of which 2
+ * were clips, the rest being her own channel and a handful of unrelated videos.
+ * Across the six queries now in use the same clips appear plus five more. See
+ * SEARCH_QUERIES for the measurements.
+ *
  * The clips filter is deliberately narrow: another channel's video counts only
  * when her name is in the title or the description snippet. A search for a common
  * given name returns plenty of unrelated videos, so this leans on the word
@@ -64,14 +72,58 @@ interface UploadsResponse {
 }
 
 const HANDLE = "@pinguvtuber";
-const CHANNEL_TITLE_PREFIX = "Pingu";
+
+/**
+ * Her channel title, and the prefix that identifies her own uploads.
+ *
+ * The full title with the period, not "Pingu". "Pingu" also matches "Pingu -
+ * Official Channel", the children's cartoon, which is a different channel
+ * entirely: measured, 12 of its videos came back from these searches and every
+ * one was being dropped as her own upload without ever being read.
+ */
+const CHANNEL_TITLE_PREFIX = "Pingu Ch.";
 
 /** Newest first. Without sort=dd these tabs are ordered by popularity. */
 const STREAMS_TAB = `https://www.youtube.com/${HANDLE}/streams?view=0&sort=dd&flow=grid&hl=id&gl=ID`;
 const VIDEOS_TAB = `https://www.youtube.com/${HANDLE}/videos?view=0&sort=dd&flow=grid&hl=id&gl=ID`;
-const SEARCH_PAGE = `https://www.youtube.com/results?search_query=${encodeURIComponent(
+
+/**
+ * Six searches instead of one, because one is not enough.
+ *
+ * YouTube search is relevance-ranked off a single query, so it surfaces whichever
+ * slice of the web it thinks matches that phrasing. A single "pingu vtuber"
+ * returned 19 results and only 2 of them were clips: the rest was her own channel
+ * plus a handful of unrelated videos that happened to use the word. Measured
+ * across the six below, the same 2 clips plus 5 more appear, 86 distinct videos
+ * in the pool.
+ *
+ *   query               results   pool running
+ *   pingu vtuber             19            19
+ *   pingu ch                 28            43
+ *   pinguvtuber              13            47
+ *   pingu clip               19            59
+ *   pingu naplive            18            71
+ *   pingu vtuber clip        19            86
+ *
+ * "pingu vtuber" alone returns the cartoon constantly, which is what a single
+ * query was mostly surfacing. "pingu ch" finds the clip channels, "pinguvtuber"
+ * finds the ones that tagged her handle, and the rest widen it. They overlap
+ * heavily, so the union is deduplicated by video id.
+ */
+const SEARCH_QUERIES = [
   "pingu vtuber",
-)}&hl=id&gl=ID`;
+  "pingu ch",
+  "pinguvtuber",
+  "pingu clip",
+  "pingu naplive",
+  "pingu vtuber clip",
+];
+
+function searchPage(query: string): string {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(
+    query,
+  )}&hl=id&gl=ID`;
+}
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
@@ -531,11 +583,26 @@ function parseSearchResults(html: string): SearchEntry[] {
  * is the newest clips *among those found* and not an exhaustive archive.
  */
 async function readClips(): Promise<ContentItem[]> {
-  const html = await fetchText(SEARCH_PAGE);
-  if (!html) return [];
+  // Fetches the six searches together rather than in sequence: they are unrelated
+  // requests to unrelated pages, so serialising them would multiply the latency
+  // of the slowest tab by six. A partial failure is normal here, not exceptional.
+  const pages = await Promise.all(SEARCH_QUERIES.map((query) => fetchText(searchPage(query))));
 
-  const ranked = parseSearchResults(html).map((entry, position) => ({ entry, position }));
-  const qualifying = ranked.filter(
+  // Deduplicated by video id, keeping each video's first sighting. Six searches
+  // overlap heavily — the same clip came back from four of them — so without
+  // this the wall would be mostly repeats of whatever ranked highest.
+  const byId = new Map<string, { entry: SearchEntry; position: number }>();
+
+  pages.forEach((html, queryIndex) => {
+    if (!html) return;
+
+    parseSearchResults(html).forEach((entry, position) => {
+      if (byId.has(entry.videoId)) return;
+      byId.set(entry.videoId, { entry, position: queryIndex * 1000 + position });
+    });
+  });
+
+  const qualifying = [...byId.values()].filter(
     ({ entry }) => entry.mentions && !entry.isOwn && !entry.isLive,
   );
 

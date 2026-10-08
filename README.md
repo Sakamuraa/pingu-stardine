@@ -333,7 +333,7 @@ Chrome headless terhadap `npm run preview`:
 - Form: 0. Tautan `mailto:`: 0.
 - Tanpa error console di ketiga lebar.
 - Canonical, `og:url`, `og:image`, `twitter:image`, JSON-LD `url` dan `image`
-  semuanya menunjuk ke `https://pingu-stardine.vtube-info.xyz`.
+  semuanya menunjuk ke `https://pingu.vtube-info.xyz`.
 - HTML hasil build tidak bocor URL absolut ke domain lain; semua referensi
   aset lokal.
 - Kontras: 15 pasangan token per tema, semua lolos. Terendah 4.55:1 di terang
@@ -387,7 +387,7 @@ var, tanpa database.
 Build command `npm run build`, output `dist`, folder `api/` terbaca sebagai
 function Node. Publish ke `main` akan auto-deploy.
 
-Lalu di Settings → Domains, tambahkan `pingu-stardine.vtube-info.xyz` sebagai
+Lalu di Settings → Domains, tambahkan `pingu.vtube-info.xyz` sebagai
 custom domain. Kalau `*.vtube-info.xyz` sudah diarahkan ke Vercel lewat DNS
 wildcard, subdomain ini langsung nyambung tanpa langkah tambahan.
 **Netlify** - build `npm run build`, publish `dist`. `public/_headers` ikut

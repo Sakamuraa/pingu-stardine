@@ -31,7 +31,7 @@ export const site = {
    *
    * Placeholder: no domain is registered for this site yet.
    */
-  url: "https://pingu-stardine.vtube-info.xyz",
+  url: "https://pingu.vtube-info.xyz",
   locale: "id_ID",
   avatar: "/media/avatar-youtube.webp",
   /**
