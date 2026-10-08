@@ -39,13 +39,17 @@
  *    clipper. Only the search results page mixes all three, which is what makes
  *    it the right place to look for clips.
  *
- * Six searches are read for the clips rather than one, because a single query is
+ * Ten searches are read for the clips rather than one, because a single query is
  * not a measure of how many clips exist. YouTube ranks by relevance to the
  * phrasing it was given, so one query mostly returns whichever slice of the web
  * matches those words: "pingu vtuber" alone came back with 19 results of which 2
  * were clips, the rest being her own channel and a handful of unrelated videos.
- * Across the six queries now in use the same clips appear plus five more. See
- * SEARCH_QUERIES for the measurements.
+ *
+ * Six queries was still not enough, which is the harder finding: measured over
+ * three passes, a single pass with six queries surfaced 8, 9 and 7 of the
+ * nineteen clips any pass could find, and never all of them. So a cold response
+ * could be missing the newest clip on the page. Ten queries brings a pass to
+ * 15, 13 and 14 of nineteen. See SEARCH_QUERIES.
  *
  * The clips filter is deliberately narrow: another channel's video counts only
  * when her name is in the title or the description snippet. A search for a common
@@ -91,19 +95,19 @@ const VIDEOS_TAB = `https://www.youtube.com/${HANDLE}/videos?view=0&sort=dd&flow
  * Six searches instead of one, because one is not enough.
  *
  * YouTube search is relevance-ranked off a single query, so it surfaces whichever
- * slice of the web it thinks matches that phrasing. A single "pingu vtuber"
- * returned 19 results and only 2 of them were clips: the rest was her own channel
- * plus a handful of unrelated videos that happened to use the word. Measured
- * across the six below, the same 2 clips plus 5 more appear, 86 distinct videos
- * in the pool.
+ * slice of the web it thinks matches that phrasing -- and which slice that is
+ * changes between requests. Measured over three passes against the nineteen
+ * clips that any pass could find:
  *
- *   query               results   pool running
- *   pingu vtuber             19            19
- *   pingu ch                 28            43
- *   pinguvtuber              13            47
- *   pingu clip               19            59
- *   pingu naplive            18            71
- *   pingu vtuber clip        19            86
+ *   query set       pass 1   pass 2   pass 3   union
+ *   6 queries         8/19     9/19     7/19     11/19
+ *   10 queries       15/19    13/19    14/19     19/19
+ *
+ * Six queries never saw eight of the nineteen, in any pass, which is why the
+ * newest clip on the page could be missing from a cold response. The extra four
+ * reach the clip channels by name rather than by the word: "pingu ch. clip" and
+ * "pingu ch. naplive" pull captions that use her title with the period, and
+ * "pingu bang al" is the recurring co-star in most of these clips.
  *
  * "pingu vtuber" alone returns the cartoon constantly, which is what a single
  * query was mostly surfacing. "pingu ch" finds the clip channels, "pinguvtuber"
@@ -117,6 +121,10 @@ const SEARCH_QUERIES = [
   "pingu clip",
   "pingu naplive",
   "pingu vtuber clip",
+  "pingu ch. clip",
+  "pingu clip naplive",
+  "pingu bang al",
+  "pingu ch. naplive",
 ];
 
 function searchPage(query: string): string {
@@ -215,7 +223,16 @@ function parseAge(text: string): string | null {
   return `${parts[1]} ${unit} lalu`;
 }
 
-/** Strip an age label down to a number of seconds, or null if it has no digits. */
+/**
+ * Strip an age label down to a number of seconds, or null if it has no digits.
+ *
+ * `tahun` is in the table and was missing, which meant every clip older than a
+ * year came back null and sorted to the end of the wall: the deployment served
+ * "2 tahun lalu" above "1 tahun lalu" because the older one had no sortable age
+ * at all. 365 days, not 365.25 -- the labels themselves are coarse ("1 tahun
+ * lalu" covers anywhere from 12 to 24 months), so a more precise figure would be
+ * precision the source does not have.
+ */
 function ageToSeconds(label: string | null): number | null {
   if (!label) return null;
 
@@ -230,6 +247,7 @@ function ageToSeconds(label: string | null): number | null {
     hari: 86400,
     minggu: 604800,
     bulan: 2592000,
+    tahun: 31536000,
   };
 
   const unit = seconds[parts[2]];
@@ -603,9 +621,36 @@ function parseSearchResults(html: string): SearchEntry[] {
  * is why the sort falls back to the original order on a tie instead of inventing
  * a sequence.
  *
- * The pool is also bounded by what search surfaced, roughly 25 results, so this
- * is the newest clips *among those found* and not an exhaustive archive.
+ * The pool is also bounded by what search surfaced, roughly 85 results across the
+ * six queries, so this is the newest clips *among those found* and not an
+ * exhaustive archive.
  */
+
+/**
+ * Clips already found, kept in the module scope by video id.
+ *
+ * Search does not return the same page twice. Four identical passes over the six
+ * queries surfaced 79, 92, 80 and 88 distinct videos, and the ten qualifying
+ * clips appeared in them unevenly:
+ *
+ *   seen in 4 of 4 passes   5 clips
+ *   seen in 3 of 4 passes   3 clips
+ *   seen in 1 of 4 passes   2 clips
+ *
+ * So a wall built from one pass is a sample, and a clip in it can vanish between
+ * two requests from the same visitor. That is exactly what happened: the
+ * deployment served seven clips while the same code locally served twelve, and the
+ * missing one was the newest, three days old.
+ *
+ * A clip that has been seen once is kept. Search stops surfacing something once it
+ * has been indexed for a while, so this is the only way the wall can be a wall
+ * rather than a roll of the dice. Entries are dropped on a long TTL, because the
+ * set is a union rather than a current answer and holding a dead id forever would
+ * be its own kind of lie.
+ */
+const seenClips = new Map<string, { item: ContentItem; at: number }>();
+const SEEN_CLIP_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 async function readClips(): Promise<ContentItem[]> {
   // Fetches the six searches together rather than in sequence: they are unrelated
   // requests to unrelated pages, so serialising them would multiply the latency
@@ -626,25 +671,16 @@ async function readClips(): Promise<ContentItem[]> {
     });
   });
 
-  const qualifying = [...byId.values()].filter(
-    ({ entry }) => entry.mentions && !entry.isOwn && !entry.isLive,
-  );
+  const now = Date.now();
 
-  // Newest first. Array.prototype.sort is stable in every engine this targets, so
-  // the position tiebreak below is a documented one, not an accident.
-  qualifying.sort((a, b) => {
-    const left = a.entry.ageSeconds;
-    const right = b.entry.ageSeconds;
-    if (left === right) return a.position - b.position;
-    // An unreadable age cannot be placed, so it goes last rather than first.
-    if (left === null) return 1;
-    if (right === null) return -1;
-    return left - right;
-  });
+  // This pass's qualifying clips go into the kept set, replacing whatever was
+  // there so a refreshed age or thumbnail wins over a stale one.
+  const fresh: Array<{ item: ContentItem; position: number }> = [];
 
-  return qualifying
-    .slice(0, CLIP_LIMIT)
-    .map(({ entry }) => ({
+  for (const { entry, position } of byId.values()) {
+    if (!entry.mentions || entry.isOwn || entry.isLive) continue;
+
+    const item: ContentItem = {
       videoId: entry.videoId,
       url: `https://www.youtube.com/watch?v=${entry.videoId}`,
       title: entry.title,
@@ -654,7 +690,38 @@ async function readClips(): Promise<ContentItem[]> {
       age: entry.age,
       duration: entry.duration,
       channel: entry.channel,
-    }));
+    };
+
+    seenClips.set(entry.videoId, { item, at: now });
+    fresh.push({ item, position });
+  }
+
+  // The wall is the union: everything seen recently, plus this pass's own
+  // position for clips already known so the tiebreak below is still meaningful.
+  const positionOf = new Map(fresh.map(({ item, position }) => [item.videoId, position]));
+  const union = new Map<string, { item: ContentItem; position: number }>();
+
+  for (const [videoId, kept] of seenClips) {
+    if (now - kept.at > SEEN_CLIP_TTL_MS) {
+      seenClips.delete(videoId);
+      continue;
+    }
+    union.set(videoId, { item: kept.item, position: positionOf.get(videoId) ?? Number.MAX_SAFE_INTEGER });
+  }
+
+  // Newest first. Array.prototype.sort is stable in every engine this targets, so
+  // the position tiebreak below is a documented one, not an accident.
+  const wall = [...union.values()].sort((a, b) => {
+    const left = a.item.age ? ageToSeconds(a.item.age) : null;
+    const right = b.item.age ? ageToSeconds(b.item.age) : null;
+    if (left === right) return a.position - b.position;
+    // An unreadable age cannot be placed, so it goes last rather than first.
+    if (left === null) return 1;
+    if (right === null) return -1;
+    return left - right;
+  });
+
+  return wall.slice(0, CLIP_LIMIT).map(({ item }) => item);
 }
 
 /**
