@@ -84,7 +84,7 @@ export function Nav({
               height={32}
               className="size-8 rounded-pill object-cover"
             />
-            <span>Mizu Hamzazu</span>
+            <span>Pingu Stardine</span>
           </a>
 
           <nav aria-label="Bagian halaman" className="hidden md:block">

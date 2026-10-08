@@ -65,7 +65,7 @@ export function StreamPage() {
   const heading = item?.title ?? chat.title;
 
   useEffect(() => {
-    if (heading) document.title = `${heading} - Mizu Hamzazu`;
+    if (heading) document.title = `${heading} - Pingu Stardine`;
   }, [heading]);
 
   if (!id) return <Missing />;
@@ -168,7 +168,7 @@ function Player({
       <div
         ref={mountRef}
         className="size-full [&>iframe]:size-full [&>iframe]:border-0"
-        title="Pemutar broadcast Mizu Hamzazu"
+        title="Pemutar broadcast Pingu Stardine"
       />
     </div>
   );

@@ -1,9 +1,9 @@
 {
-  "name": "mizu-hamzazu",
+  "name": "pingu-stardine",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Situs perkenalan identitas VTuber MizuHamzazu.",
+  "description": "Situs perkenalan identitas VTuber Pingu Stardine.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

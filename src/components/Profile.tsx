@@ -50,7 +50,7 @@ export function Profile({ detail = false }: { detail?: boolean } = {}) {
               id="profile-heading"
               className="mt-4 text-3xl font-semibold leading-tight tracking-tight md:text-4xl"
             >
-              Tentang Mizu
+              Tentang Pingu
             </Heading>
             <p className="mt-5 max-w-[58ch] text-base leading-relaxed text-fg-muted md:text-lg">
               Halaman ini mengumpulkan apa yang tertulis tentang dirinya, dan
@@ -79,7 +79,7 @@ export function Profile({ detail = false }: { detail?: boolean } = {}) {
             <figure className="mt-8 border-l-2 border-peach pl-5">
               <CrownSimple size={22} className="text-milk" aria-hidden="true" />
               <blockquote className="mt-3 font-display text-xl leading-relaxed">
-                Kenalin aku Mizu, salah satu putri dari kerajaan hamzazu!
+                Kenalin aku Pingu, bintang nyasar yang buka Cat Cafe di bumi!
               </blockquote>
               <figcaption className="mt-3 text-sm text-fg-subtle">
                 Dari deskripsi channel YouTube, ditulis sendiri olehnya.

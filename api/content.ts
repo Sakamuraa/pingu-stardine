@@ -41,8 +41,14 @@
  *
  * The clips filter is deliberately narrow: another channel's video counts only
  * when her name is in the title or the description snippet. A search for a common
- * given name returns plenty of unrelated videos, and "Mizu Hamzazu" is specific
- * enough that a false positive needs a coincidence rather than a partial name.
+ * given name returns plenty of unrelated videos, so this leans on the word
+ * boundary — measured, not assumed: a bare substring test pulled a Fisher-Price
+ * toy video titled "Family Time with Pingu" into the clip wall, because Pingu is
+ * also a children's cartoon and a Penguin-of-Africa brand.
+ *
+ * It is still a best effort rather than an exact match. A toy video carrying
+ * only the brand name in its title would still slip through, which is why the
+ * page presents the clip wall as best effort instead of claiming completeness.
  * Her own uploads are excluded, since those are already in the other two tabs.
  */
 
@@ -57,14 +63,14 @@ interface UploadsResponse {
   json(body: unknown): void;
 }
 
-const HANDLE = "@MizuHamzazu";
-const CHANNEL_TITLE_PREFIX = "Mizu Hamzazu";
+const HANDLE = "@pinguvtuber";
+const CHANNEL_TITLE_PREFIX = "Pingu";
 
 /** Newest first. Without sort=dd these tabs are ordered by popularity. */
 const STREAMS_TAB = `https://www.youtube.com/${HANDLE}/streams?view=0&sort=dd&flow=grid&hl=id&gl=ID`;
 const VIDEOS_TAB = `https://www.youtube.com/${HANDLE}/videos?view=0&sort=dd&flow=grid&hl=id&gl=ID`;
 const SEARCH_PAGE = `https://www.youtube.com/results?search_query=${encodeURIComponent(
-  "mizu hamzazu",
+  "pingu vtuber",
 )}&hl=id&gl=ID`;
 
 const UA =
@@ -489,12 +495,15 @@ function parseSearchResults(html: string): SearchEntry[] {
       age,
       ageSeconds: ageToSeconds(age),
       thumbnail: thumbnails[thumbnails.length - 1]?.url ?? "",
-      // Her name in the title or the description snippet. Checked against both
-      // because clippers use either: some name the character, some only mention
-      // her in the blurb.
-      mentions: /mizu\s*hamzazu/i.test(`${title} ${description}`),
-      // A collaboration publishes under both names, e.g. "Mizu Hamzazu Ch. dan
-      // NapLive", so this matches a prefix rather than the whole string.
+      // A clip has to name her, and "pingu" alone is not naming her: it is also a
+      // children's cartoon and a Penguin-of-Africa brand. Requiring the channel
+      // title or one of her handles keeps the wall to people clipping the
+      // character rather than to whatever else happens to share the word.
+      mentions: /(pingu\s+ch\.|pinguvtuber|pingustardine|starpaw)/i.test(
+        `${title} ${description}`,
+      ),
+      // A collaboration publishes under both names, e.g. "Pingu Ch. dan
+      // SomeoneElse", so this matches a prefix rather than the whole string.
       isOwn: channel.startsWith(CHANNEL_TITLE_PREFIX),
       isLive: STREAMING_LABEL.test(published),
     });

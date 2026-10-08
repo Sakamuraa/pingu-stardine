@@ -6,34 +6,31 @@
     <meta name="theme-color" content="#fdf4ee" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#241512" media="(prefers-color-scheme: dark)" />
 
-    <title>Mizu Hamzazu - Hamster Princess, VTuber Indonesia</title>
+    <title>Pingu Stardine - Bintang Nyasar, VTuber Indonesia</title>
     <meta
       name="description"
-      content="Mizu Hamzazu, hamster princess dari kerajaan Hamzazu. Stream dan klip harian di YouTube, update cepat di X. ID/EN VTuber, Live 2D."
+      content="Pingu Stardine, bintang nyasar yang jatuh ke bumi dan sekarang menjalankan Cat Cafe. Stream dan klip di YouTube, update harian di X. ID/EN VTuber, Live 2D."
     />
-    <meta name="author" content="Mizu Hamzazu" />
-    <link rel="canonical" href="https://mizuhamzazu.vtube-info.xyz/" />
+    <meta name="author" content="Pingu Stardine" />
+    <link rel="canonical" href="https://pingu-stardine.vtube-info.xyz/" />
 
     <meta property="og:type" content="profile" />
-    <meta property="og:site_name" content="Mizu Hamzazu" />
+    <meta property="og:site_name" content="Pingu Stardine" />
     <meta property="og:locale" content="id_ID" />
-    <meta property="og:title" content="Mizu Hamzazu - Hamster Princess, VTuber Indonesia" />
+    <meta property="og:title" content="Pingu Stardine - Bintang Nyasar, VTuber Indonesia" />
     <meta
       property="og:description"
-      content="Salas satu putri dari kerajaan Hamzazu. Stream, klip, dan meme, hampir tiap hari."
+      content="Selamat datang di Starpaw Cafe, tempat nongkrongnya para stray cats. Stream, klip, dan fan art."
     />
-    <meta property="og:url" content="https://mizuhamzazu.vtube-info.xyz/" />
-    <meta property="og:image" content="https://mizuhamzazu.vtube-info.xyz/og-image.svg" />
+    <meta property="og:url" content="https://pingu-stardine.vtube-info.xyz/" />
+    <meta property="og:image" content="https://pingu-stardine.vtube-info.xyz/og-image.svg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Mizu Hamzazu - Hamster Princess" />
-    <meta
-      name="twitter:description"
-      content="Stream, klip, dan meme, hampir tiap hari."
-    />
-    <meta name="twitter:image" content="https://mizuhamzazu.vtube-info.xyz/og-image.svg" />
+    <meta name="twitter:title" content="Pingu Stardine - Bintang Nyasar" />
+    <meta name="twitter:description" content="Stream, klip, dan fan art." />
+    <meta name="twitter:image" content="https://pingu-stardine.vtube-info.xyz/og-image.svg" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- iOS ignores WebP for touch icons, so this one stays PNG. -->
@@ -43,15 +40,15 @@
       {
         "@context": "https://schema.org",
         "@type": "Person",
-        "name": "Mizu Hamzazu",
-        "alternateName": ["@MizuHamzazu", "@mizuhamzazu"],
-        "description": "Hamster princess dari kerajaan Hamzazu. ID/EN VTuber, Live 2D.",
-        "url": "https://mizuhamzazu.vtube-info.xyz/",
-        "image": "https://mizuhamzazu.vtube-info.xyz/media/avatar-youtube.webp",
+        "name": "Pingu Stardine",
+        "alternateName": ["@pinguvtuber", "@pingustardine"],
+        "description": "Bintang nyasar yang jatuh ke bumi, sekarang menjalankan Cat Cafe. ID/EN VTuber, Live 2D.",
+        "url": "https://pingu-stardine.vtube-info.xyz/",
+        "image": "https://pingu-stardine.vtube-info.xyz/media/avatar-youtube.webp",
         "sameAs": [
-          "https://www.youtube.com/@MizuHamzazu",
-          "https://x.com/mizuhamzazu",
-          "https://trakteer.id/MizuHamzazu"
+          "https://www.youtube.com/@pinguvtuber",
+          "https://x.com/pingustardine",
+          "https://trakteer.id/pinguvtuber"
         ]
       }
     </script>
@@ -59,9 +56,12 @@
     <script>
       // Runs before first paint so the correct token set is already on screen.
       // Without this, a dark-mode visitor eats one light flash on every load.
+      // The key must match STORAGE_KEY in src/lib/useTheme.ts, or the choice is
+      // written under one name and read under another and the toggle dies
+      // silently.
       (function () {
         try {
-          var stored = localStorage.getItem("mizu-theme");
+          var stored = localStorage.getItem("pingu-theme");
           var prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
           document.documentElement.dataset.theme = stored || (prefersLight ? "light" : "dark");
         } catch (e) {

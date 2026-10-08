@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mizuhamzazu.vtube-info.xyz/sitemap.xml
+Sitemap: https://pingu-stardine.vtube-info.xyz/sitemap.xml

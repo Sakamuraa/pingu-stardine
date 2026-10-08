@@ -36,7 +36,7 @@ type State = {
 };
 
 /** When the snapshot's ages were measured, so the client can keep them honest. */
-const SNAPSHOT_AT = "2026-10-08T05:49:31.714Z";
+const SNAPSHOT_AT = "2026-10-08T10:20:00.000Z";
 
 /**
  * Bundled copies of the three lists, taken 2026-10-08.
@@ -48,52 +48,50 @@ const SNAPSHOT_AT = "2026-10-08T05:49:31.714Z";
  * the page that can go stale with no server to refresh it.
  */
 const SNAPSHOT_STREAMS: ContentItem[] = [
-  { videoId: "S6PD4T8H4Cw", url: "https://www.youtube.com/watch?v=S6PD4T8H4Cw", title: "『UNTIL THEN』kelanjutan setelah ketemu anak baru", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "bgnGUHwGNqs", url: "https://www.youtube.com/watch?v=bgnGUHwGNqs", title: "『KuloNiku: Bowl Up !』Pinter masak bakso = menantu idaman", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "XYDuOH8Q4-Y", url: "https://www.youtube.com/watch?v=XYDuOH8Q4-Y", title: "『RABUATIF』design apa ya tudayyy", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "8UlKFnlvo00", url: "https://www.youtube.com/watch?v=8UlKFnlvo00", title: "『UNTIL THEN』kali ini beneran main until then", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "M1ANn11KH2Q", url: "https://www.youtube.com/watch?v=M1ANn11KH2Q", title: "『PHASMOPHOBIA』nakutin atau ditakutin? ft. SilveragonAri dan RayRxyz", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "j533fLKIn4k", url: "https://www.youtube.com/watch?v=j533fLKIn4k", title: "『NOBAR』sapi-sapi apa yang nempel di dinding? sapidermen", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "618FhJnhs8g", url: "https://www.youtube.com/watch?v=618FhJnhs8g", title: "『GARTIC.IO』tebak gambar apa tebak perasaan?", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "It9c17pa3UY", url: "https://www.youtube.com/watch?v=It9c17pa3UY", title: "『Super Market Simulator』until then ngecrash", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "UuDwJqqTky0", url: "https://www.youtube.com/watch?v=UuDwJqqTky0", title: "【 Genshin Impact 】 Lanjut archon quest", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "AlRKI3yDsmE", url: "https://www.youtube.com/watch?v=AlRKI3yDsmE", title: "【 Countdown 】 Sebelum tutup", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "BnhK9JocBak", url: "https://www.youtube.com/watch?v=BnhK9JocBak", title: "【 CHAT 】 Kalo beneran apocalypse siapa yang survive?", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "ZIBCgARyigU", url: "https://www.youtube.com/watch?v=ZIBCgARyigU", title: "【 Persona 5 Royal 】 Nyari palace 3? #12", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "qUWrSmIPFhI", url: "https://www.youtube.com/watch?v=qUWrSmIPFhI", title: "【 CHAT 】 Ada yang masih bangun", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "HRPN3CSniY0", url: "https://www.youtube.com/watch?v=HRPN3CSniY0", title: "【 The Walking Dead 】Kayaknya bad ending #3", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "vbzL83kb2Uc", url: "https://www.youtube.com/watch?v=vbzL83kb2Uc", title: "【 The Walking Dead 】Kemana arahnya ya #2", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "LS5p9ce7dC8", url: "https://www.youtube.com/watch?v=LS5p9ce7dC8", title: "【 Genshin Impact 】 Archon quest omg ronova", thumbnail: "", live: false, viewers: null, age: null, duration: null },
 ];
 
 const SNAPSHOT_VIDEOS: ContentItem[] = [
-  { videoId: "iO2_xI8y6OQ", url: "https://www.youtube.com/watch?v=iO2_xI8y6OQ", title: "Aku dan Dirimu - Cover by Mizu Hamzazu & @naplive7", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "KjhKjXLqO0s", url: "https://www.youtube.com/watch?v=KjhKjXLqO0s", title: "【ROLEPLAY】Sayang? Masih Bangun?", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "YcAqZoRfJII", url: "https://www.youtube.com/watch?v=YcAqZoRfJII", title: "Kaktus - Suara Kayu, Cover by Mizu Hamzazu", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "qkVWgPhqo7g", url: "https://www.youtube.com/watch?v=qkVWgPhqo7g", title: "Would You Be So Kind, Cover oleh Mizu Hamzazu", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "W_Ze-4gYSBU", url: "https://www.youtube.com/watch?v=W_Ze-4gYSBU", title: "Will You come to my special day?", thumbnail: "", live: false, viewers: null, age: null, duration: null },
-  { videoId: "9y7f7ntlNtY", url: "https://www.youtube.com/watch?v=9y7f7ntlNtY", title: "【ROLEPLAY】Kamu Manggil Aku Lagi, Boss?", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "GITnRumUm5I", url: "https://www.youtube.com/watch?v=GITnRumUm5I", title: "Iklan baru Pingstar", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "oEhdTE0e2Ho", url: "https://www.youtube.com/watch?v=oEhdTE0e2Ho", title: "Sukidakara - Pingu &  ⁨@NagatsuAkiza (Cover)", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "4wD3BWIxOv4", url: "https://www.youtube.com/watch?v=4wD3BWIxOv4", title: "【 Debut PV 】 A Stray Star has come! Re-opening Cat Cafe! ᓚᘏᗢ", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "CxfK3LTepkE", url: "https://www.youtube.com/watch?v=CxfK3LTepkE", title: "【MV】My Kisah - Pingu", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "IqRK-gQtNEE", url: "https://www.youtube.com/watch?v=IqRK-gQtNEE", title: "【 ASMR 】Aflion Blue Sky Linear Switch - Typing Sound Only", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "-7xMN3WoGzo", url: "https://www.youtube.com/watch?v=-7xMN3WoGzo", title: "【 PLOG 】Gacoan dan yap", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "OxfN4aCabD8", url: "https://www.youtube.com/watch?v=OxfN4aCabD8", title: "【 BATSU 】 Arcade Date Bareng Penonton", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "zmYm3PGgTKU", url: "https://www.youtube.com/watch?v=zmYm3PGgTKU", title: "Iklan member pingstar", thumbnail: "", live: false, viewers: null, age: null, duration: null },
+  { videoId: "JlhMkDCi7EM", url: "https://www.youtube.com/watch?v=JlhMkDCi7EM", title: "【 DEBUT TEASER 】Bintang Nyasar? Buka Cat Cafe?", thumbnail: "", live: false, viewers: null, age: null, duration: null },
 ];
 
 const SNAPSHOT_CLIPS: ContentItem[] = [
-  { videoId: "HX3YxahVsQY", url: "https://www.youtube.com/watch?v=HX3YxahVsQY", title: "Bang Al Buat Kak Tri Salting Gak Karuan", thumbnail: "", live: false, viewers: null, age: null, duration: null, channel: "Exile Syahputra" },
-  { videoId: "ERx7I0-inKY", url: "https://www.youtube.com/watch?v=ERx7I0-inKY", title: "Kak Tri Ngedate Bersama Bang Al Ternyata?", thumbnail: "", live: false, viewers: null, age: null, duration: null, channel: "Exile Syahputra" },
-  { videoId: "3HrLBePvVbc", url: "https://www.youtube.com/watch?v=3HrLBePvVbc", title: "Kak Tri Juga Cinta Bang Al Seperti Mizu?", thumbnail: "", live: false, viewers: null, age: null, duration: null, channel: "Exile Syahputra" },
-  { videoId: "FNDvvq3H8OU", url: "https://www.youtube.com/watch?v=FNDvvq3H8OU", title: "Mizu Aku Cinta Kamu", thumbnail: "", live: false, viewers: null, age: null, duration: null, channel: "putra clip" },
+  { videoId: "uDudNwwJ91Q", url: "https://www.youtube.com/watch?v=uDudNwwJ91Q", title: "Pingu Akhirnya Jujur Kalau Suka Sama Bang Al 🥰 [Pingu Ch.]", thumbnail: "", live: false, viewers: null, age: null, duration: null, channel: "Exile Syahputra" },
+  { videoId: "tDL_1MLvjmM", url: "https://www.youtube.com/watch?v=tDL_1MLvjmM", title: "Pingu Mau Lakban Mulut Bang Al Karna Bocorin Hubungan Mereka 😂 [Pingu Ch. - Naplive]", thumbnail: "", live: false, viewers: null, age: null, duration: null, channel: "Exile Syahputra" },
 ];
 
-/** Ages as measured at capture time, in seconds. */
+/**
+ * Ages as measured at capture time, in seconds.
+ *
+ * Read off the channel's own labels on the streams tab at SNAPSHOT_AT, not
+ * calculated, so they match what a visitor would see on YouTube that day. Note
+ * the `mgg` and `bln` abbreviations: YouTube writes weeks and months that way in
+ * Indonesian, and the parser in api/content.ts carries the same units.
+ */
 const SNAPSHOT_AGES: Record<string, number> = {
-  S6PD4T8H4Cw: 3600,
-  bgnGUHwGNqs: 64800,
-  "XYDuOH8Q4-Y": 86400,
-  "8UlKFnlvo00": 86400,
-  M1ANn11KH2Q: 172800,
-  j533fLKIn4k: 172800,
-  "618FhJnhs8g": 259200,
-  It9c17pa3UY: 432000,
-  iO2_xI8y6OQ: 36000,
-  KjhKjXLqO0s: 2592000,
-  YcAqZoRfJII: 2592000,
-  qkVWgPhqo7g: 5184000,
-  "W_Ze-4gYSBU": 5184000,
-  "9y7f7ntlNtY": 7776000,
-  HX3YxahVsQY: 10368000,
-  "ERx7I0-inKY": 20736000,
-  "3HrLBePvVbc": 20736000,
-  FNDvvq3H8OU: 31536000,
+  UuDwJqqTky0: 75600,
+  AlRKI3yDsmE: 259200,
+  BnhK9JocBak: 345600,
+  ZIBCgARyigU: 432000,
+  qUWrSmIPFhI: 518400,
+  HRPN3CSniY0: 604800,
+  vbzL83kb2Uc: 691200,
+  LS5p9ce7dC8: 777600,
 };
 
 const SECOND = 1000;

@@ -56,7 +56,7 @@ export function Channels({ standalone = false }: { standalone?: boolean } = {}) 
             id="channels-heading"
             className="max-w-[18ch] text-3xl font-semibold leading-tight tracking-tight md:text-4xl"
           >
-            Di mana Mizu bisa ditemukan
+            Di mana Pingu bisa ditemukan
           </Heading>
         </Reveal>
 

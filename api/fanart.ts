@@ -10,14 +10,14 @@
  * README). The same Nitter instances that serve the tweets route also serve a
  * search feed, so this reads:
  *
- *   /search/rss?f=tweets&q=%23ForMizu
+ *   /search/rss?f=tweets&q=%23PingGambar
  *
- * which is Nitter's own rendering of https://x.com/search?q=%23ForMizu&f=live.
+ * which is Nitter's own rendering of https://x.com/search?q=%23PingGambar&f=live.
  *
  * The hashtag is matched case-insensitively here as well, because people write
- * #ForMizu, #formizu and #FORMIZU interchangeably and the search treats them as
- * one term anyway. Matching again costs nothing and catches the entries a
- * case-sensitive test would drop.
+ * #PingGambar, #pinggambar and #PINGGAMBAR interchangeably and the search treats
+ * them as one term anyway. Matching again costs nothing and catches the entries
+ * a case-sensitive test would drop.
  *
  * Images
  * ------
@@ -45,7 +45,7 @@ interface FanartResponse {
 
 const INSTANCES = ["https://nitter1.kabii.moe", "https://nitter.kabii.moe"] as const;
 
-const HASHTAG = "formizu";
+const HASHTAG = "pinggambar";
 const QUERY = `%23${HASHTAG}`;
 
 const UA =
@@ -161,6 +161,20 @@ function parseFeed(xml: string): Fanart[] {
     // The search already filters on the tag, so an entry without it is noise the
     // search matched on something else — a mention, or a truncated body.
     if (!new RegExp(`#${HASHTAG}`, "i").test(caption)) continue;
+
+    /*
+     * Drop amplified posts.
+     *
+     * The tag is not exclusive to one character. Searching it returns whatever
+     * else carries the same hashtag, and the first result for this one is another
+     * VTuber's retweet — a wall with someone else's channel on it.
+     *
+     * Keyed on the label rather than on the text mentioning another creator: the
+     * captured feed was checked both ways and the label is what actually
+     * separated the one bad entry from the eighteen real pieces. A caption like
+     * "🌠 #pinggambar" is art with no name in it at all and must survive.
+     */
+    if (/^(?:RT\s+by|R\s+to)\s+@/i.test(caption)) continue;
 
     out.push({
       id,

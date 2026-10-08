@@ -49,7 +49,7 @@ export function Uploads() {
   /*
    * Never an empty shelf.
    *
-   * The window is a day, and Mizu does not stream every day, so most days this
+   * The window is a day, and Pingu does not stream every day, so most days this
    * filtered to nothing and the section rendered as a heading over blank space
    * with a note pointing elsewhere — a worse answer than showing the last thing
    * she did, however long ago. So if the window comes up empty the newest
