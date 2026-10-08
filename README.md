@@ -1,6 +1,6 @@
-# mizu-hamzazu
+﻿# pingu-stardine
 
-Situs perkenalan **Mizu Hamzazu**, hamster princess dari kerajaan Hamzazu.
+Situs perkenalan **Pingu Stardine**, bintang nyasar yang jatuh ke bumi lalu membuka Cat Cafe.
 Satu halaman statis, satu file konten, nol CMS, nol data karangan.
 
 ```
@@ -27,7 +27,7 @@ ditarik dari kanal aslinya, langsung saat build server:
 | Credits karakter (L2D, Rig) | Bio profil X, milik kreator sendiri |
 | Broadcast terbaru | Tab `/streams?view=0&sort=dd`, dibaca tiap request |
 | Upload non-broadcast | Tab `/videos?view=0&sort=dd` |
-| Klip dari channel lain | Pencarian `mizu hamzazu`, nama di judul atau deskripsi |
+| Klip dari channel lain | Pencarian `pingu vtuber`, channel atau handle-nya di judul atau deskripsi |
 | Status live | Badge `LIVE` di thumbnail, atau baris penonton |
 | Jumlah penonton | Baris "N sedangonton" pada kartu live |
 | Usia tiap item | Label relatif YouTube sendiri, dari baris metadata |
@@ -55,7 +55,7 @@ yang lain:
 |---|---|---|
 | Streams | Tab `/streams?sort=dd` | `lockupViewModel` |
 | Video | Tab `/videos?sort=dd` | `lockupViewModel` |
-| Clips | Pencarian `mizu hamzazu` | `videoRenderer` |
+| Clips | Pencarian `pingu vtuber` | `videoRenderer` |
 
 Dua tab channel tidak saling tumpuk: `/streams` hanya berisi broadcast,
 `/videos` hanya berisi upload. Klip tidak pernah disebut di keduanya, jadi
@@ -63,10 +63,14 @@ hanya halaman hasil pencarian yang bisa jadi sumbernya. Ketiganya diambil
 `Promise.all`, karena tiga request ke tiga halaman berbeda tidak perlu
 diserialkan.
 
-**Filter klip** sengaja sempit: channel lain, namanya ada di judul atau di
-cuplikan deskripsi, dan bukan sedang live. Upload sendiri dikecualikan karena
+**Filter klip** sengaja sempit: channel lain, dan captionnya harus menyebut
+**"Pingu Ch."** — judul channel-nya — atau salah satu handle-nya
+(`pinguvtuber`, `pingustardine`, `starpaw`). Kata "pingu" sendirian tidak
+cukup, karena itu juga nama kartun anak dan merek Penguin of Africa; pencarian
+`pingu` mengembalikan 17 dari 17 hasil kartun itu dan nol VTuber. Query-nya
+karena itu `pingu vtuber`, bukan `pingu`. Upload sendiri dikecualikan karena
 sudah ada di dua tab lain. `isOwn` mencocokkan awalan, bukan string penuh,
-supaya kolaborasi yang terbit sebagai "Mizu Hamzazu Ch. dan NapLive" tetap
+supaya kolaborasi yang terbit sebagai "Pingu Ch. dan SomeoneElse" tetap
 terhitung miliknya.
 
 ### Kenapa tidak ada jam mulai
@@ -157,7 +161,7 @@ serverless dan dari browser sungguhan:
 
 | Yang dicoba | Hasil |
 |---|---|
-| `x.com/mizuhamzazu` (HTML) | 200, 136 kB, nol teks tweet |
+| `x.com/pingustardine` (HTML) | 200, 136 kB, nol teks tweet |
 | `syndication.twitter.com` timeline-profile | 429, tiga percobaan |
 | `cdn.syndication.twimg.com` widgets/timelines | 200, nol tweet |
 | `publish.twitter.com/oembed` | 404 |
@@ -184,8 +188,8 @@ menggagalkan seluruh halaman:
 
 | instance | item |
 |---|---|
-| `nitter.kabii.moe/mizuhamzazu/rss` | 20 |
-| `nitter1.kabii.moe/mizuhamzazu/rss` | 20 |
+| `nitter.kabii.moe/pingustardine/rss` | 20 |
+| `nitter1.kabii.moe/pingustardine/rss` | 20 |
 
 Kalau keduanya gagal, endpoint tetap membalas daftar kosong **beserta
 alasannya**, bukan 200 yang terlihat berisi. Halaman mengatakannya apa adanya di
@@ -204,7 +208,7 @@ Empat hal yang tidak dibawa feed, dan karena itu tidak dikarang di sini:
   jadi `youtube.com`. Dicocokkan dari label pertama host, bukan dari pola TLD,
   karena mirror ini hidup di ratusan domain yang tidak saling berkaitan.
 - **Label `RT by` / `R to` dibuang** dari teks. Itu penanda kerja Nitter,
-  bukan tulisan Mizu. Prefix-nya dihapus server-side, tapi status retweet tetap
+  bukan tulisan Pingu. Prefix-nya dihapus server-side, tapi status retweet tetap
   dibaca lebih dulu supaya kartu bisa menandainya sendiri.
 
 Card-nya dibangun dari bentuk milik situs sendiri: garis peach di kiri, font
@@ -254,32 +258,49 @@ mengaku live. Kalau nanti chat bisa diambil, titik pasangnya sudah ada: satu
 Dari brief:
 
 ```
-base / midtone .... #DCA08A, #D59B85   peach
-shadow ............ #A67362            cokelat susu hangat
-highlight ......... #E8B9A6            cream peach terang
+base / midtone .... #ABC1E7             biru pastel lembut
+shadow ............ #7D9BC4             biru abu-abu redup
+highlight ......... #FCE27D             kuning bintang terang
 ```
 
-Ketiganya nada tengah, tidak ada yang bisa membawa teks di atas latar terang.
-Ramp tinta diturunkan dari hue yang sama dan diukur, bukan dikira:
+Ramp tinta diturunkan dari hue yang sama dan **diukur**, bukan dikira. Semua
+pasangan yang benar-benar dirender UI diuji di kedua tema: 4.5 untuk teks badan,
+3.0 untuk batas.
 
 | Token | Terang | Gelap |
 |---|---|---|
-| `--bg` | `#fdf4ee` | `#241512` |
-| `--surface` | `#f8e7db` | `#33201a` |
-| `--fg` | `#39251e` | `#f4dfd8` |
-| `--fg-muted` | `#7a5245` | `#e8b9a6` |
+| `--bg` | `#f4f7fc` | `#131c2b` |
+| `--surface` | `#e8eff9` | `#1c2839` |
+| `--fg` | `#1b2a41` | `#e4edf9` |
+| `--fg-muted` | `#3a5474` | `#abc1e7` |
+| `--fg-subtle` | `#425c7e` | `#8fa9ce` |
+| `--peach` | `#abc1e7` | `#abc1e7` |
+| `--glow` | `#fce27d` | `#fce27d` |
 
-`--fg-muted` di mode terang pernah `#82594c`, yang hanya menghasilkan 4.37:1
-di atas chip `surface-deep`. Digeser satu langkah ke `#7a5245` supaya lolos di
-ketiga permukaan.
+Dua nilai sengaja menyimpang dari brief, dan alasannya tercatat di
+`src/index.css` supaya tidak "dibetulkan" tanpa sadar:
+
+- **`--peach-deep` lebih gelap dari base di brief.** `#ABC1E7` hanya 1.70:1
+  terhadap halaman dan tidak bisa memisahkan dua permukaan sama sekali.
+  `#6586B4` lolos 3.0. Nada brief tetap dipakai sebagai `--peach` untuk
+  isiannya.
+- **`--fg-subtle` digelapkan dua kali.** Nilai pertama `#4c688c` menghasilkan
+  4.41:1 di atas chip `surface-deep`, sedikit di bawah lantai 4.5 — dan teks
+  tertiary justru yang mendarat di chip itu.
+
+`--glow` tidak bisa mencapai 3:1 di atas halaman biru pucat, dan itu memang
+konsekuensi brief. Ia dipakai untuk yang memang diminta: badge, garis kiri
+kartu, wash, glow. Tidak pernah satu-satunya pembatas dua permukaan.
 
 ## Tipografi
 
-**Petrona** untuk display, **Karla** untuk teks. Petrona karena channel ini
-memakai framing putri kerajaan, dan itu satu-satunya alasan serif yang jujur
-di sini, bukan hiasan. Karla untuk badan karena punya karakter tanpa jadi
-Inter. Keduanya self-hosted lewat `@fontsource-variable`, dengan
-`unicode-range` sehingga hanya subset latin yang diunduh.
+**Fredoka** untuk display, **Nunito** untuk teks. Fredoka karena ujungnya
+membulat dan x-height-nya tinggi, yang正是 yang terbaca untuk bintang nyasar
+yang menjalankan cat cafe; serif akan mengklaimformalitas yang tidak dimiliki
+karakter ini. Nunito untuk badan karena membulat tanpa bersaing dengan display,
+dan x-height-nya menjaga teks kecil tetap terbuka. Keduanya self-hosted lewat
+`@fontsource-variable`, dengan `unicode-range` sehingga hanya subset latin
+yang diunduh.
 
 ## Bentuk
 
@@ -312,7 +333,7 @@ Chrome headless terhadap `npm run preview`:
 - Form: 0. Tautan `mailto:`: 0.
 - Tanpa error console di ketiga lebar.
 - Canonical, `og:url`, `og:image`, `twitter:image`, JSON-LD `url` dan `image`
-  semuanya menunjuk ke `https://mizuhamzazu.vtube-info.xyz`.
+  semuanya menunjuk ke `https://pingu-stardine.vtube-info.xyz`.
 - HTML hasil build tidak bocor URL absolut ke domain lain; semua referensi
   aset lokal.
 - Kontras: 15 pasangan token per tema, semua lolos. Terendah 4.55:1 di terang
@@ -362,11 +383,11 @@ loaded, bukan di jalur kritis.
 Build static ke `dist/`, plus satu serverless function di `api/`. Tanpa env
 var, tanpa database.
 
-**Vercel** - import `Sakamuraa/mizu-hamzazu`, Vite terdeteksi otomatis.
+**Vercel** - import repo ini, Vite terdeteksi otomatis.
 Build command `npm run build`, output `dist`, folder `api/` terbaca sebagai
 function Node. Publish ke `main` akan auto-deploy.
 
-Lalu di Settings → Domains, tambahkan `mizuhamzazu.vtube-info.xyz` sebagai
+Lalu di Settings → Domains, tambahkan `pingu-stardine.vtube-info.xyz` sebagai
 custom domain. Kalau `*.vtube-info.xyz` sudah diarahkan ke Vercel lewat DNS
 wildcard, subdomain ini langsung nyambung tanpa langkah tambahan.
 **Netlify** - build `npm run build`, publish `dist`. `public/_headers` ikut

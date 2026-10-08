@@ -496,10 +496,11 @@ function parseSearchResults(html: string): SearchEntry[] {
       ageSeconds: ageToSeconds(age),
       thumbnail: thumbnails[thumbnails.length - 1]?.url ?? "",
       // A clip has to name her, and "pingu" alone is not naming her: it is also a
-      // children's cartoon and a Penguin-of-Africa brand. Requiring the channel
-      // title or one of her handles keeps the wall to people clipping the
-      // character rather than to whatever else happens to share the word.
-      mentions: /(pingu\s+ch\.|pinguvtuber|pingustardine|starpaw)/i.test(
+      // children's cartoon and a Penguin-of-Africa brand. The identifying word is
+      // "Pingu Ch." — her channel title — or one of her handles; \s* so a caption
+      // written "PinguCh." still counts. Requiring it keeps the wall to people
+      // clipping the character rather than to whatever else shares the word.
+      mentions: /(pingu\s*ch\.|pinguvtuber|pingustardine|starpaw)/i.test(
         `${title} ${description}`,
       ),
       // A collaboration publishes under both names, e.g. "Pingu Ch. dan

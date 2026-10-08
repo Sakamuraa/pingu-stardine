@@ -61,8 +61,15 @@ export function Hero() {
         </div>
 
         <motion.figure {...enter(0.22)} className="md:col-span-5">
+          {/*
+            No border. The brand shadow tone is a blue that reads as a frame
+            drawn around the picture rather than as part of it, and the arch
+            shape plus the drop shadow already carry the edge. A border here
+            would also be decorative, not a content boundary, so it is not
+            carrying accessibility weight it needs to justify.
+          */}
           <div
-            className="overflow-hidden rounded-arch border border-line-strong bg-surface-deep"
+            className="overflow-hidden rounded-arch bg-surface-deep"
             style={{
               boxShadow:
                 "0 24px 60px -28px color-mix(in oklab, var(--milk) 60%, transparent)",

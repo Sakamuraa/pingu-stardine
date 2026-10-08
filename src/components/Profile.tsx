@@ -1,4 +1,4 @@
-import { CrownSimple, Palette, PersonSimple } from "@phosphor-icons/react";
+import { Palette, PersonSimple, StarFour } from "@phosphor-icons/react";
 
 import { hashtags, series, site } from "@/content/site";
 import { Reveal, StaggerGroup, StaggerItem } from "@/lib/reveal";
@@ -61,23 +61,24 @@ export function Profile({ detail = false }: { detail?: boolean } = {}) {
 
         <div className={`grid gap-14 md:grid-cols-12 md:gap-12 ${detail ? "mt-16" : ""}`}>
           <Reveal className="md:col-span-5" amount={0.3}>
-            {/* Verbatim from the X bio: "Hamster Princess". A subheading here
-                because the h1 above already exists on the detail route. */}
+            {/* From her own bio: she calls herself a stray star who fell to Earth
+                and now runs a cat café. A subheading here because the h1 above
+                already exists on the detail route. */}
             {detail ? (
               <h2 className="text-3xl font-semibold leading-tight tracking-tight md:text-4xl">
-                Hamster Princess
+                Bintang Nyasar
               </h2>
             ) : (
               <h2
                 id="profile-heading"
                 className="text-3xl font-semibold leading-tight tracking-tight md:text-4xl"
               >
-                Hamster Princess
+                Bintang Nyasar
               </h2>
             )}
 
             <figure className="mt-8 border-l-2 border-peach pl-5">
-              <CrownSimple size={22} className="text-milk" aria-hidden="true" />
+              <StarFour size={22} className="text-milk" aria-hidden="true" />
               <blockquote className="mt-3 font-display text-xl leading-relaxed">
                 Kenalin aku Pingu, bintang nyasar yang buka Cat Cafe di bumi!
               </blockquote>
@@ -105,11 +106,13 @@ export function Profile({ detail = false }: { detail?: boolean } = {}) {
 
           <Reveal className="md:col-span-6 md:col-start-7" delay={0.08} amount={0.3}>
             {/* Facts only. No description of her appearance and no guesses
-                about what she likes: neither is something a source states. */}
+                about what she likes: neither is something a source states.
+                The span is measured off the snapshot in useContent.ts — eight
+                streams, twenty-one hours to nine days — rather than asserted. */}
             <p className="max-w-[54ch] text-base leading-relaxed text-fg-muted md:text-lg">
-              Bio resminya menyebut ID/EN VTuber dengan model Live 2D.
-              Delapan upload terakhir di feed berjarak enam hari, dua di
-              antaranya dari seri Until Then.
+              Bio resminya menyebut ID/EN VTuber dengan model Live 2D, tinggal di
+              Starpaw Cafe. Delapan stream terakhir berjarak sembilan hari, dan
+              sebagian besar dari game.
             </p>
 
             <StaggerGroup className="mt-10 grid gap-px overflow-hidden rounded-card border border-line bg-line sm:grid-cols-3">
