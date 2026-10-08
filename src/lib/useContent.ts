@@ -139,6 +139,11 @@ export function ageLabel(item: ContentItem): string | null {
   return formatAge(captured * SECOND + elapsed);
 }
 
+/** The API's list when it has one, otherwise the previous one, otherwise none. */
+function pick(fresh: unknown, fallback: ContentItem[]): ContentItem[] {
+  return Array.isArray(fresh) && fresh.length > 0 ? fresh : fallback;
+}
+
 const INITIAL: State = {
   streams: [],
   videos: [],
@@ -202,14 +207,24 @@ export function useContent(): State {
         }
 
         failed = false;
-        setState({
+        setState((prev) => ({
           streams: payload.streams,
-          videos: Array.isArray(payload.videos) ? payload.videos : [],
-          clips: Array.isArray(payload.clips) ? payload.clips : [],
+          /*
+           * A tab that comes back empty keeps whatever the last good response had.
+           *
+           * The endpoint already carries a previous list forward rather than
+           * serving a hole, but a tab can still read empty on the very first
+           * response after a deploy. Falling back to the snapshot there means the
+           * page shows a slightly older list instead of an empty grid, which is
+           * the difference between "this is what she uploaded in October" and
+           * "there is nothing here", and only the first one is true.
+           */
+          videos: pick(payload.videos, prev.videos.length ? prev.videos : SNAPSHOT_VIDEOS),
+          clips: pick(payload.clips, prev.clips.length ? prev.clips : SNAPSHOT_CLIPS),
           live: payload.streams.some((item) => item.live),
           source: "api",
           error: null,
-        });
+        }));
       } catch (error: unknown) {
         if (controller.signal.aborted) return;
         failed = true;

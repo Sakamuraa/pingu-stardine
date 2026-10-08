@@ -243,7 +243,23 @@ function stripLiveMarker(title: string): string {
   return title.replace(/^🔴\s*/, "").trim();
 }
 
-async function fetchText(url: string): Promise<string | null> {
+/**
+ * One GET, with a single retry.
+ *
+ * The retry is here because these three pages fail one at a time, not all at
+ * once, and a lone empty tab is the failure mode that hurts most: the deployment
+ * came up serving streams=8, clips=7, videos=0 for half an hour because one
+ * request to the smallest page failed at cold start and the result was cached.
+ * The same URL, retried, returns the grid -- ten lockups, every time, across six
+ * consecutive requests from this machine.
+ *
+ * 250 ms is deliberate. YouTube rate-limits by request rate, and the three tabs
+ * already go out together, so a fast second attempt is not meaningfully worse
+ * than the first.
+ */
+const RETRY_DELAY_MS = 250;
+
+async function fetchOnce(url: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -262,6 +278,14 @@ async function fetchText(url: string): Promise<string | null> {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchText(url: string): Promise<string | null> {
+  const first = await fetchOnce(url);
+  if (first !== null) return first;
+
+  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  return fetchOnce(url);
 }
 
 function plainText(node: unknown): string | null {
@@ -643,8 +667,38 @@ async function readClips(): Promise<ContentItem[]> {
  * It exists because YouTube rate-limits hard. Measured from one IP during
  * development: the streams tab started returning 503 after a few dozen fetches,
  * which is exactly the failure a stale copy can paper over.
+ *
+ * It is also the reason a tab that comes back empty is not allowed to overwrite
+ * a tab that was full. When a cold instance fails one of the three requests, a
+ * payload with a hole in it used to be written here and then served for the next
+ * half hour, which is how the deployment showed videos=0 with everything else
+ * working. A tab that regresses to empty now keeps the last known list and the
+ * response says so through `sources`.
  */
-let lastGood: { payload: unknown; at: number; liveCount: number } | null = null;
+let lastGood: {
+  payload: {
+    streams: ContentItem[];
+    videos: ContentItem[];
+    clips: ContentItem[];
+    [key: string]: unknown;
+  };
+  at: number;
+  liveCount: number;
+  /** False when a tab was missing and its list was carried over. */
+  complete: boolean;
+} | null = null;
+
+/**
+ * How long a warm instance may answer without touching YouTube.
+ *
+ * A payload with a carried-over tab gets the same short window a live request
+ * does, not the long quiet one. Without that the memory cache hands back the
+ * incomplete copy for half an hour regardless of what the edge says, which is
+ * the original failure with an extra layer on top: the second request inside the
+ * memory window would keep reporting videos=0 even though the edge window had
+ * already expired and the next real fetch would have succeeded.
+ */
+const MEMORY_TTL_PARTIAL_MS = 60 * 1000;
 const MEMORY_TTL_LIVE_MS = 10 * 60 * 1000;
 const MEMORY_TTL_QUIET_MS = 30 * 60 * 1000;
 
@@ -657,18 +711,26 @@ export default async function handler(req: UploadsRequest, res: UploadsResponse)
 
   // Warm instance, fresh enough: answer without touching YouTube at all. While a
   // stream is running that window is ten minutes, because that is the state a
-  // visitor is watching change. Once it ends, half an hour is safe.
+  // visitor is watching change. Once it ends, half an hour is safe. A payload
+  // missing a tab gets a minute instead, so the gap is short-lived rather than
+  // carried for the rest of the window.
   if (lastGood) {
-    const ttl = lastGood.liveCount > 0 ? MEMORY_TTL_LIVE_MS : MEMORY_TTL_QUIET_MS;
+    const ttl = !lastGood.complete
+      ? MEMORY_TTL_PARTIAL_MS
+      : lastGood.liveCount > 0
+        ? MEMORY_TTL_LIVE_MS
+        : MEMORY_TTL_QUIET_MS;
 
     if (Date.now() - lastGood.at < ttl) {
       res.setHeader(
         "Cache-Control",
-        lastGood.liveCount > 0
-          ? "public, s-maxage=300, stale-while-revalidate=600"
-          : "public, s-maxage=3600, stale-while-revalidate=86400",
+        !lastGood.complete
+          ? "public, s-maxage=60, stale-while-revalidate=300"
+          : lastGood.liveCount > 0
+            ? "public, s-maxage=300, stale-while-revalidate=600"
+            : "public, s-maxage=3600, stale-while-revalidate=86400",
       );
-      res.setHeader("X-Data-Source", "memory");
+      res.setHeader("X-Data-Source", lastGood.complete ? "memory" : "memory-partial");
       res.status(200).json(lastGood.payload);
       return;
     }
@@ -678,15 +740,19 @@ export default async function handler(req: UploadsRequest, res: UploadsResponse)
   // are unrelated requests to unrelated pages, so serialising them would triple
   // the latency for no benefit. A partial failure is kept, not thrown away,
   // because two working tabs beat an error page.
-  const [streams, videos, clips] = await Promise.all([readStreams(), readVideos(), readClips()]);
+  const [freshStreams, freshVideos, freshClips] = await Promise.all([
+    readStreams(),
+    readVideos(),
+    readClips(),
+  ]);
 
-  if (streams.length === 0 && videos.length === 0 && clips.length === 0) {
+  if (freshStreams.length === 0 && freshVideos.length === 0 && freshClips.length === 0) {
     // Everything failed. A stale copy is still true data and beats an error
     // page, as long as the caller is told it is stale.
     if (lastGood) {
       res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=600");
       res.setHeader("X-Data-Source", "stale");
-      res.status(200).json({ ...(lastGood.payload as object), stale: true });
+      res.status(200).json({ ...lastGood.payload, stale: true });
       return;
     }
     res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=300");
@@ -694,35 +760,66 @@ export default async function handler(req: UploadsRequest, res: UploadsResponse)
     return;
   }
 
+  /*
+   * A tab that came back empty does not get to replace a tab that was full.
+   *
+   * This is the failure that actually happened: a cold instance lost one request,
+   * wrote a payload with videos=[] into lastGood, and served that for the next
+   * thirty minutes plus an hour at the edge while streams and clips looked fine.
+   * One flaky request turned a working page into an empty one.
+   *
+   * The previous list is kept instead, and the response reports the tab as not
+   * read this round so the client can say the data is carried over rather than
+   * claiming it was just fetched. A tab that is genuinely empty -- a channel with
+   * no uploads yet -- has no previous list to keep, so it still reports empty,
+   * which is the honest answer.
+   */
+  function carry(list: ContentItem[], key: "streams" | "videos" | "clips"): ContentItem[] {
+    if (list.length > 0) return list;
+    return lastGood?.payload[key] ?? list;
+  }
+
+  const streams = carry(freshStreams, "streams");
+  const videos = carry(freshVideos, "videos");
+  const clips = carry(freshClips, "clips");
+
   const liveCount = streams.filter((item) => item.live).length;
 
   const payload = {
     fetchedAt: new Date().toISOString(),
     liveCount,
     stale: false,
-    // Which tabs came back empty, so the UI can say so instead of rendering an
-    // empty grid with no explanation.
+    // Which tabs this request actually read. A tab false here means the list is
+    // the previous one, not an empty channel.
     sources: {
-      streams: streams.length > 0,
-      videos: videos.length > 0,
-      clips: clips.length > 0,
+      streams: freshStreams.length > 0,
+      videos: freshVideos.length > 0,
+      clips: freshClips.length > 0,
     },
     streams,
     videos,
     clips,
   };
 
-  lastGood = { payload, at: Date.now(), liveCount };
+  /*
+   * A hole in the data shortens the cache. The long quiet window is an
+   * optimisation for an archive that does not change, and it is only safe while
+   * all three tabs were actually read; otherwise the next request should be free
+   * to pick up what this one missed.
+   */
+  const complete = freshStreams.length > 0 && freshVideos.length > 0 && freshClips.length > 0;
 
-  // A finished archive does not change for hours, so a quiet channel gets a long
-  // edge window. Once something is running the cache drops to five minutes.
+  lastGood = { payload, at: Date.now(), liveCount, complete };
+
   res.setHeader(
     "Cache-Control",
-    liveCount > 0
-      ? "public, s-maxage=300, stale-while-revalidate=600"
-      : "public, s-maxage=3600, stale-while-revalidate=86400",
+    !complete
+      ? "public, s-maxage=60, stale-while-revalidate=300"
+      : liveCount > 0
+        ? "public, s-maxage=300, stale-while-revalidate=600"
+        : "public, s-maxage=3600, stale-while-revalidate=86400",
   );
-  res.setHeader("X-Data-Source", "live");
+  res.setHeader("X-Data-Source", complete ? "live" : "partial");
   res.status(200).json(payload);
 }
 
