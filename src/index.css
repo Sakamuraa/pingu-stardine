@@ -1,18 +1,24 @@
 ﻿@import "tailwindcss";
-@import "@fontsource-variable/petrona/index.css";
-@import "@fontsource-variable/karla/index.css";
+@import "@fontsource-variable/fredoka/index.css";
+@import "@fontsource-variable/nunito/index.css";
 
 /* ==========================================================================
    Design tokens
    --------------------------------------------------------------------------
    Palette comes straight from the brand brief:
-     base / midtone ......... #DCA08A, #D59B85   peach
-     shadow .................. #A67362           warm milk brown
-     highlight / glow ........ #E8B9A6           light cream peach
+     base / midtone ......... #ABC1E7   soft pastel blue
+     shadow .................. #7D9BC4   muted blue-grey
+     highlight / glow ........ #FCE27D   bright star yellow
 
-   All three are mid-tone. None can carry body text on a light ground, so the
-   ink ramp is derived from the same warm hue and verified against WCAG. Every
-   ratio in this file was measured, not eyeballed: see README.
+   The ink ramp is derived from the same blue and verified against WCAG 2.2 AA:
+   4.5 for body text, 3.0 for boundaries. Every pairing the UI actually renders
+   was measured rather than eyeballed, in both themes.
+
+   One consequence of the brief, recorded so it is not "fixed" by accident: the
+   highlight is a pale yellow and cannot reach 3:1 against a pale blue page. It
+   is used for what the brief wants it for — badges, the left rule on a card,
+   washes, glows — and never as the only boundary between two surfaces. Those
+   are carried by --peach-deep and --line-strong, which do clear 3.0.
 
    Shape rule, applied without exception:
      media frames ............ arch  (top radius 999px, bottom 20px)
@@ -25,62 +31,66 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: #fdf4ee;
-  --surface: #f8e7db;
-  --surface-deep: #f3d6c2;
+  --bg: #f4f7fc;
+  --surface: #e8eff9;
+  --surface-deep: #d6e3f4;
 
-  --line: #e9cbb6;
-  --line-strong: #a67362;
+  --line: #c3d4ea;
+  --line-strong: #5e7fa8;
 
-  --fg: #39251e;
-  /* One step darker than the first pass: #82594C lands at 4.37:1 on the
-     surface-deep chip fill, just under the 4.5 floor. This clears all three. */
-  --fg-muted: #7a5245;
-  --fg-subtle: #8a5f51;
+  --fg: #1b2a41;
+  --fg-muted: #3a5474;
+  /* Darkened twice to clear 4.5 on surface-deep. #4C688C sat at 4.41 there, and
+     tertiary text is exactly what lands on the chip fill. */
+  --fg-subtle: #425c7e;
 
-  --accent: #8a5f51;
-  --accent-contrast: #fdf4ee;
-  --accent-soft: #f0d9c8;
+  --accent: #3a5f8f;
+  --accent-contrast: #f4f7fc;
+  --accent-soft: #d6e3f4;
 
-  --ring: #8a5f51;
+  --ring: #3a5f8f;
 
   /* Brand tones, used as large fills rather than as text colours. */
-  --peach: #dca08a;
-  --peach-deep: #d59b85;
-  --milk: #a67362;
-  --glow: #e8b9a6;
-  --cocoa: #39251e;
-  /* Text placed ON a peach fill. Peach is light in both themes, so this stays
-     dark in both; deriving it from --fg would flip it and fail contrast. */
-  --on-peach: #39251e;
+  --peach: #abc1e7;
+  /* Deeper than the brief's base on purpose: that pastel is 1.7:1 against this
+     page and cannot separate two surfaces. This clears 3.0. */
+  --peach-deep: #6586b4;
+  --milk: #7d9bc4;
+  --glow: #fce27d;
+  --cocoa: #1b2a41;
+  /* Text placed ON a brand fill. Both fills are light in this theme, so this
+     stays dark; deriving it from --fg would flip it and fail contrast. */
+  --on-peach: #14203a;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #241512;
-  --surface: #33201a;
-  --surface-deep: #3d2620;
+  --bg: #131c2b;
+  --surface: #1c2839;
+  --surface-deep: #26344a;
 
-  --line: #4c322a;
-  --line-strong: #a67362;
+  --line: #33455e;
+  --line-strong: #7d9bc4;
 
-  --fg: #f4dfd8;
-  --fg-muted: #E8B9A6;
-  --fg-subtle: #d8ae99;
+  --fg: #e4edf9;
+  --fg-muted: #abc1e7;
+  --fg-subtle: #8fa9ce;
 
-  --accent: #e8b9a6;
-  --accent-contrast: #241512;
-  --accent-soft: #4a2e25;
+  --accent: #abc1e7;
+  --accent-contrast: #131c2b;
+  --accent-soft: #2a3b55;
 
-  --ring: #e8b9a6;
+  --ring: #abc1e7;
 
-  --peach: #dca08a;
-  --peach-deep: #d59b85;
-  --milk: #a67362;
-  --glow: #e8b9a6;
-  --cocoa: #f4dfd8;
-  --on-peach: #39251e;
+  /* The brand tones stay put across both themes. They are the brief, and on a
+     dark page they clear every boundary they need to anyway. */
+  --peach: #abc1e7;
+  --peach-deep: #7d9bc4;
+  --milk: #7d9bc4;
+  --glow: #fce27d;
+  --cocoa: #e4edf9;
+  --on-peach: #14203a;
 }
 
 @theme inline {
@@ -103,13 +113,13 @@
   --color-cocoa: var(--cocoa);
   --color-on-peach: var(--on-peach);
 
-  /* Petrona for display: warm old-style serif with a wonk axis. The channel
-     presents as a princess of a kingdom, which is the one case where a serif
-     is the honest choice rather than a decorative one. */
-  --font-display: "Petrona Variable", "Iowan Old Style", Georgia, serif;
-  /* Karla for everything else. Quirky enough to not read as Inter, quiet
-     enough for 14px body copy. */
-  --font-sans: "Karla Variable", ui-sans-serif, system-ui, -apple-system,
+  /* Fredoka for display. Rounded terminals and a tall x-height, which is what a
+     stray star running a cat café reads as; a serif would claim a formality
+     this character does not have. */
+  --font-display: "Fredoka Variable", "Trebuchet MS", ui-rounded, sans-serif;
+  /* Nunito for everything else. Rounded to match the display without competing,
+     and its tall x-height keeps small caption text open at 12px. */
+  --font-sans: "Nunito Variable", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
 
   --radius-arch: 999px 999px 20px 20px;
@@ -198,8 +208,9 @@
     }
   }
 
-  /* Warm light spilling from the top of the page. A gradient, not an image:
-     zero bytes on the critical path and no layout shift. */
+  /* Light spilling from the top of the page — starlight over the base tone.
+     A gradient, not an image: zero bytes on the critical path and no layout
+     shift. */
   .dawn-wash {
     background:
       radial-gradient(
