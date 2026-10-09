@@ -487,14 +487,6 @@ interface ContentItem {
    * about the future.
    */
   upcoming?: boolean;
-  /**
-   * True when this stream belongs to another channel.
-   *
-   * Set only for the demo fallback. A visitor must be able to tell whose stream
-   * they are looking at without reading the title, so the card shows the channel
-   * whenever this is true rather than quietly borrowing someone else's schedule.
-   */
-  demoChannel?: string;
 }
 
 interface LockupEntry {
@@ -655,7 +647,8 @@ function pickUpcoming(html: string): ContentItem | null {
  * Newest broadcasts, live state included, plus the scheduled one if there is one.
  *
  * Both come out of the same /streams response, so asking for the schedule costs
- * no extra request. Splitting this into two fetches would double the one request
+ * no extra request. There is no fallback to another channel: if this one has
+ * nothing scheduled, the card does not appear. Splitting this into two fetches would double the one request
  * most likely to be slow, which is the request for the biggest page.
  */
 async function readStreams(
@@ -672,46 +665,6 @@ async function readStreams(
       .map((entry) => toItem(entry, entry.live)),
     upcoming: pickUpcoming(html),
   };
-}
-
-/**
- * Where a demo stream comes from when the channel has nothing scheduled.
- *
- * Set so the card can be seen working; a card that only appears when a creator
- * schedules something is a card nobody reviews. The fallback is labelled as
- * another channel's on the card itself -- see `demoChannel` -- because the whole
- * point of the card is telling a visitor when the next stream is, and borrowing
- * someone else's schedule without saying so would answer that wrongly.
- */
-const DEMO_HANDLE = "@HisetaPhiniaCh";
-const DEMO_NAME = "Hiseta Phinia";
-
-let demoUpcoming: { at: number; item: ContentItem | null } | null = null;
-
-/**
- * The channel's own upcoming stream, or the demo one.
- *
- * The demo is cached on the same clock as the rest of the payload so it is not
- * refetched on every request, and it is only read when the channel itself has
- * nothing -- the point of the fallback is to show the card, not to override the
- * real schedule.
- */
-async function readUpcoming(deadline: number, own: ContentItem | null): Promise<ContentItem | null> {
-  if (own) return own;
-
-  if (demoUpcoming && Date.now() - demoUpcoming.at < MEMORY_TTL_QUIET_MS) {
-    return demoUpcoming.item;
-  }
-
-  const tab = `https://www.youtube.com/${DEMO_HANDLE}/streams?view=0&sort=dd&flow=grid&hl=id&gl=ID`;
-  const html = await fetchText(tab, deadline);
-  const item = html ? pickUpcoming(html) : null;
-
-  demoUpcoming = {
-    at: Date.now(),
-    item: item ? { ...item, demoChannel: DEMO_NAME } : null,
-  };
-  return demoUpcoming.item;
 }
 
 /**
@@ -1090,9 +1043,7 @@ async function readContent(req: UploadsRequest, res: UploadsResponse): Promise<v
       readClips(deadline),
     ]);
 
-  // Only reached when the channel itself has nothing scheduled, and then only to
-  // show the card at all.
-  const upcoming = await readUpcoming(deadline, ownUpcoming);
+  const upcoming = ownUpcoming;
 
   if (freshStreams.length === 0 && freshVideos.length === 0 && freshClips.length === 0) {
     // Everything failed. A stale copy is still true data and beats an error
