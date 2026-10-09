@@ -875,7 +875,7 @@ const MEMORY_TTL_PARTIAL_MS = 60 * 1000;
 const MEMORY_TTL_LIVE_MS = 10 * 60 * 1000;
 const MEMORY_TTL_QUIET_MS = 30 * 60 * 1000;
 
-export default async function handler(req: UploadsRequest, res: UploadsResponse) {
+async function readContent(req: UploadsRequest, res: UploadsResponse): Promise<void> {
   if (req.method && req.method !== "GET") {
     res.setHeader("Allow", "GET");
     res.status(405).json({ error: "method not allowed" });
@@ -998,6 +998,36 @@ export default async function handler(req: UploadsRequest, res: UploadsResponse)
   );
   res.setHeader("X-Data-Source", complete ? "live" : "partial");
   res.status(200).json(payload);
+}
+
+/**
+ * The entry point, wrapped.
+ *
+ * The wrapper exists because a 500 with an empty body tells you nothing. That is
+ * what this endpoint was answering in production -- 500, zero-length body, ~450ms
+ * -- while /api/tweets and /api/fanart returned 200 from the same folder and the
+ * same function runtime. An unhandled rejection inside a serverless function is
+ * reported to the platform, and the platform is free to send an empty body; the
+ * stack goes to logs nobody reads. Meanwhile the page falls back to its snapshot,
+ * so the site looks alive and the broken endpoint hides behind it.
+ *
+ * Catching here means a failure is a JSON body with a message in it, so the next
+ * person to see a 500 can read what happened instead of re-deriving it. The other
+ * three endpoints do the same thing; this one did not, which is exactly why it was
+ * the only one that took an afternoon to diagnose.
+ */
+export default async function handler(req: UploadsRequest, res: UploadsResponse) {
+  try {
+    await readContent(req, res);
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    // Deliberately not the stack: it can carry absolute paths, and a public
+    // endpoint is the wrong place for it. The message plus the name is enough to
+    // identify the failure, and the stack is still in the platform logs.
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Failed", "1");
+    res.status(500).json({ error: "content endpoint failed", detail });
+  }
 }
 
 export {
