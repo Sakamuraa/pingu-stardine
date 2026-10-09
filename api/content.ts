@@ -65,30 +65,74 @@
  */
 
 /*
- * Two things about this import, both learned the hard way.
+ * Inline the seed instead of importing it, and delete the module.
  *
- * The extension is required. package.json sets "type": "module", so the api/
- * files are native ESM on Vercel, and native ESM does not do the extensionless
- * resolution that TypeScript, bundlers and most local runners do. Written as
- * "./clip-seed" it threw while the module loaded, before the handler was called,
- * and the endpoint answered 500 with an empty body in ~450ms having attempted no
- * fetch -- so no LastGood snapshot and no retry could rescue it either.
+ * Every import in api/ is gone. That is the point.
  *
- * The file lives in lib/, not beside this one. Vercel treats every file in api/
- * as its own serverless function entry, so a plain data module parked there
- * becomes a fifth function that exports no handler. It is not supposed to break
- * its neighbour, and the neighbour stayed broken anyway; keeping data out of the
- * functions folder removes the whole class of problem rather than arguing about
- * whether this particular arrangement was safe.
+ * Mizu's /api/content answers on the same stack, the same "type": "module", the
+ * same vercel.json and the same function runtime -- and Mizu's content.ts imports
+ * nothing at all. Pingu's imported one module, and its endpoint answered 500 with
+ * an empty body in ~450ms while tweets, fanart and chat returned 200 from the
+ * same folder. A try/catch wrapping the handler never fired: no body, no marker
+ * header. The handler was never entered, which puts the failure at build or load
+ * time, where nothing inside the function can observe it -- and Vercel still
+ * reported the deployment green, so the status was no help either.
  *
- * Neither mistake was catchable locally. `tsc -b` accepts the bare specifier
- * (moduleResolution "bundler" resolves it, allowImportingTsExtensions makes the
- * .ts form legal at the same time). eslint has no rule for it without the import
- * plugin. And the first local harness appended .ts to relative specifiers --
- * reproducing the bundler's behaviour -- so it reported the broken endpoint as
- * healthy. scripts/check-api-imports.mjs exists for that reason; `npm run check:api`.
+ * Two fixes were tried first and both left production exactly where it was:
+ * adding the .ts extension to the bare specifier, and moving the file to lib/
+ * with a ../ relative path. Neither changed the response. Whatever the resolver
+ * objects to, the answer that does not depend on winning the argument is to not
+ * import anything.
+ *
+ * The seed stays byte-identical. Ages are YouTube's own labels, captured rather
+ * than calculated; regenerate it with the probe that measured it rather than by
+ * hand, because a hand-edited age is a guess.
  */
-import SEED_CLIPS from "../lib/clip-seed.ts";
+type SeedClip = {
+  videoId: string;
+  title: string;
+  channel: string;
+  /** YouTube's own label when captured, e.g. "3 hari lalu". */
+  age: string | null;
+  duration: string | null;
+};
+
+/**
+ * Clips already known, so a cold instance has a wall before search answers.
+ *
+ * Search is the only source for these and it is not a stable one. Measured over
+ * four passes of ten queries from two networks, the same ten queries surfaced 149
+ * distinct videos and 20 qualifying clips, and no single pass saw all of them. The
+ * newest clip is the most fragile of all: it appears under exactly one query, on
+ * some networks and not others, so a cold response could omit the first thing on
+ * the page.
+ *
+ * A union held in module scope fixes a warm instance and does nothing for a cold
+ * one, so the known set is committed here instead. Search still runs and can only
+ * add to this list.
+ */
+const SEED_CLIPS: SeedClip[] = [
+  { videoId: "tDL_1MLvjmM", title: "Pingu Mau Lakban Mulut Bang Al Karna Bocorin Hubungan Mereka 😂 [Pingu Ch. - Naplive]", channel: "Exile Syahputra", age: "10 bln lalu", duration: "1.35" },
+  { videoId: "Qjr-RL28kik", title: "Jadi Pingu Dan Bang al Itu Udah Serumah Dan Sekamar? 😱 [Pingu Ch.]", channel: "Exile Syahputra", age: "3 h lalu", duration: "1.49" },
+  { videoId: "QqTSAvkGDfQ", title: "Bang Al pamit tidur ke Pingu dan rebutan ngurus bayi [ Pingu Ch. Clip ]", channel: "DweenClip", age: "1 thn lalu", duration: "3.32" },
+  { videoId: "_SsXKhE2kKo", title: "Pingu Dan Bang Al Liburan Keluarga Bersama Anaknya 🥰 [Naplive - Pingu Ch. - Zeyayaya]", channel: "Exile Syahputra", age: "11 bln lalu", duration: "1.55" },
+  { videoId: "uDudNwwJ91Q", title: "Pingu Akhirnya Jujur Kalau Suka Sama Bang Al 🥰 [Pingu Ch.]", channel: "Exile Syahputra", age: "8 bln lalu", duration: "1.16" },
+  { videoId: "CavqWDgr764", title: "Pingu Cemburu Bang Al Ada Cewe Baru? 😢 [Pingu Ch. - Naplive]", channel: "Exile Syahputra", age: "11 bln lalu", duration: "1.24" },
+  { videoId: "4BzqltBdxXo", title: "Bang AL mampir ke stream skin baru @pinguvtuber ", channel: "Vendouw 07 Ch.", age: "1 bln lalu", duration: "3.30" },
+  { videoId: "oOAT24VEwEE", title: "Batsu kecup basah @pinguvtuber", channel: "Rama Takagi", age: "1 thn lalu", duration: "1.38" },
+  { videoId: "41Z2kQLnyqs", title: "@pinguvtuber pake wallpaper @naplive7", channel: "Dredd", age: "1 thn lalu", duration: "0.16" },
+  { videoId: "QuEg7DYT9JI", title: "Pingu salting ketika tau Bang Al reaction lagunya dan nyanyi bareng 👉👈 [ Pingu Ch. Clip ]", channel: "DweenClip", age: "10 bln lalu", duration: "5.37" },
+  { videoId: "HakvaUXF6XY", title: "Pingu kedatangan *suami* di malam tahun baru @pinguvtuber", channel: "SylvNoir Ch.", age: "1 thn lalu", duration: "1.56" },
+  { videoId: "wfSokIrqMUg", title: "Pingu Dan Bang Al Pegangan Tangan Ketika Ngedate? 😮 [Pingu Ch.]", channel: "Exile Syahputra", age: "8 bln lalu", duration: "1.14" },
+  { videoId: "vh5CFxVarL4", title: "Istri Bang Al Ini Akhirnya Buka Suara Untuk Klarifikasi! [Pingu Ch.]", channel: "Exile Syahputra", age: "9 bln lalu", duration: "2.02" },
+  { videoId: "5EB5g36Jkzs", title: "Aduh Bang Al Kenapa Bocor Gitu Kasian Pingu Isi Hatinya Ikut Bocor 😂 [Pingu Ch.]", channel: "Exile Syahputra", age: "4 bln lalu", duration: "1.23" },
+  { videoId: "Dv8uYPlYQk0", title: "Pingu Menjadi Obat Dan Prioritas Ketika Bang Al Sedang Sakit 🥰 [Pingu Ch.]", channel: "Exile Syahputra", age: "8 bln lalu", duration: "1.27" },
+  { videoId: "NSJ_4zlpuLw", title: "Kenapa Sih Kalau Soal Bang Al Pingu Harus Tsundere Gitu Guys? 🤔 [Pingu Ch.]", channel: "Exile Syahputra", age: "5 bln lalu", duration: "1.28" },
+  { videoId: "iQwTokm8L4E", title: "Pingu Bahagia Banget Ketika Liat Bang Al Denger Lagunya 🥰 [Pingu Ch. - Naplive]", channel: "Exile Syahputra", age: "10 bln lalu", duration: "2.05" },
+  { videoId: "NR6DyrvTnyc", title: "VTUBER PALING TSUNDERE! ADA LAWAN?? || @pinguvtuber 【VTUBER CORNER】", channel: "Vtuber Graphic", age: "4 bln lalu", duration: "34.16" },
+  { videoId: "y8AX6kJbVj8", title: "Pingu Diinterogasi Tentang Pernikahannya Dengan Bang Al [Pingu Ch. - Naplive]", channel: "Exile Syahputra", age: "10 bln lalu", duration: "2.24" },
+  { videoId: "8YDi5kFKVfA", title: "Pingu Dan Bang Al Romantis Banget Dari Pegangan Tangan Sampai Tidur Bareng! 😳 [Naplive - Pingu Ch.]", channel: "Exile Syahputra", age: "8 bln lalu", duration: "2.21" },
+];
 
 interface UploadsRequest {
   method?: string;
