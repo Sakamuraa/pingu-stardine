@@ -19,6 +19,14 @@
  * them as one term anyway. Matching again costs nothing and catches the entries
  * a case-sensitive test would drop.
  *
+ * The read is per request with no memory cache and no lastGood copy, unlike
+ * api/content.ts. That is correct here and worth saying: artwork is somebody
+ * else's work, a fixed wall of it goes stale in a way that a channel's own upload
+ * list does not, and an empty answer here is far more likely to be the source
+ * being unavailable than the page genuinely having no art. So the response says
+ * `reason: unavailable` and the UI offers the X search, which is always reachable,
+ * rather than showing an empty wall as though it were the answer.
+ *
  * Images
  * ------
  * Nitter proxies every image through its own host as
@@ -43,7 +51,46 @@ interface FanartResponse {
   json(body: unknown): void;
 }
 
-const INSTANCES = ["https://nitter1.kabii.moe", "https://nitter.kabii.moe"] as const;
+/**
+ * Nitter instances, tried in order.
+ *
+ * This list is longer than it used to be, and not for tidiness: two of these were
+ * enough while the kabii pair carried both routes, and now the fanart route gets
+ * an empty feed from both. The tweets route still reads twenty posts through
+ * nitter1.kabii.moe from the same address, so the instance is not down -- it is
+ * answering the profile route and returning nothing for the hashtag search.
+ *
+ * That is why more instances rather than a retry: two hosts agreeing that a search
+ * is empty is information, and hitting the same host twice is not. Each is tried
+ * once, in order, and the first that returns a parseable feed with entries in it
+ * wins.
+ *
+ * Measured from this machine while diagnosing, all of them refusing for their own
+ * reasons, which is the normal state of a list like this:
+ *
+ *   nitter1.kabii.moe    HTTP 429   rate limited
+ *   nitter.kabii.moe     HTTP 429   rate limited
+ *   nitter.net           refused
+ *   xcancel.com          HTTP 451   unavailable for legal reasons
+ *   nitter.poast.org     no DNS
+ *   nitter.space         HTTP 403
+ *   nitter.tiekoetter.com HTTP 200, feed empty
+ *   nitter.catsarch.com  HTTP 503
+ *
+ * The rate limits are per address, so which of these answers differs between a
+ * laptop and a serverless IP. That is the reason to keep several rather than to
+ * pick the best one.
+ */
+const INSTANCES = [
+  "https://nitter1.kabii.moe",
+  "https://nitter.kabii.moe",
+  "https://nitter.net",
+  "https://xcancel.com",
+  "https://nitter.tiekoetter.com",
+  "https://nitter.space",
+  "https://nitter.catsarch.com",
+  "https://nitter.adminforge.de",
+] as const;
 
 const HASHTAG = "pinggambar";
 const QUERY = `%23${HASHTAG}`;
@@ -195,22 +242,41 @@ export default async function handler(_req: FanartRequest, res: FanartResponse) 
   let fanart: Fanart[] = [];
   let servedBy: string | null = null;
 
-  for (const instance of INSTANCES) {
-    try {
-      const response = await fetch(`${instance}/search/rss?f=tweets&q=${QUERY}`, {
-        headers: { "user-agent": UA },
-        signal: AbortSignal.timeout(9000),
-      });
-      if (!response.ok) continue;
+  /*
+   * The eight instances are tried concurrently, not in sequence.
+   *
+   * In series the page would wait for the sum of every timeout: seven dead hosts
+   * at nine seconds each is a minute of nothing before the eighth is even tried.
+   * In parallel the whole read costs the slowest single response.
+   *
+   * Eight seconds, not nine. The function budget is the reason: a request that
+   * outlives it is killed with no body, and the page cannot tell that apart from
+   * the source being down. Leaving room under the budget is cheaper than being
+   * killed while the last instance is still talking.
+   */
+  const attempts = await Promise.all(
+    INSTANCES.map(async (instance) => {
+      try {
+        const response = await fetch(`${instance}/search/rss?f=tweets&q=${QUERY}`, {
+          headers: { "user-agent": UA },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!response.ok) return { instance, parsed: [] as Fanart[] };
 
-      const parsed = parseFeed(await response.text());
-      if (parsed.length > 0) {
-        fanart = parsed;
-        servedBy = instance;
-        break;
+        return { instance, parsed: parseFeed(await response.text()) };
+      } catch {
+        return { instance, parsed: [] as Fanart[] };
       }
-    } catch {
-      // Try the next instance rather than failing the page.
+    }),
+  );
+
+  // List order wins over arrival order, so a slow first instance cannot be beaten
+  // to the wall by a fast seventh that happens to also answer.
+  for (const attempt of attempts) {
+    if (attempt.parsed.length > 0) {
+      fanart = attempt.parsed;
+      servedBy = attempt.instance;
+      break;
     }
   }
 

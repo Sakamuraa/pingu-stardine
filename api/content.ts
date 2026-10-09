@@ -143,6 +143,28 @@ const VIDEO_LIMIT = 12;
 const CLIP_LIMIT = 12;
 const TIMEOUT_MS = 15000;
 
+/**
+ * Ceiling on one handler call, and the per-request timeout is whatever is left.
+ *
+ * Vercel kills a function that outlives its budget, and the failure reads as
+ * FUNCTION_INVOCATION_FAILED with no body -- which is what happened once the clip
+ * route went to ten searches: ten parallel requests, each 15 s with a retry after
+ * it, is 30 seconds of possible wall time against a ten-second budget. Ten tabs
+ * empty on every cold request and no way to see why.
+ *
+ * So the deadline is explicit and shared. Every fetch inside one call takes a
+ * slice of what remains, the retry only happens if there is time left for it, and
+ * the call always returns an answer inside the budget -- fewer clips if that is
+ * what the time allowed, which is the same trade api/content.ts already makes
+ * when one tab fails.
+ */
+const HANDLER_DEADLINE_MS = 8500;
+
+/** Milliseconds left before the deadline, or 0 once it has passed. */
+function remaining(deadline: number): number {
+  return Math.max(0, deadline - Date.now());
+}
+
 const LIVE_BADGE = /LIVE_NOW|BADGE_STYLE_LIVE|"LIVE"/;
 
 /**
@@ -270,24 +292,29 @@ function stripLiveMarker(title: string): string {
 }
 
 /**
- * One GET, with a single retry.
+ * One GET, with a single retry if there is time for it.
  *
- * The retry is here because these three pages fail one at a time, not all at
- * once, and a lone empty tab is the failure mode that hurts most: the deployment
- * came up serving streams=8, clips=7, videos=0 for half an hour because one
- * request to the smallest page failed at cold start and the result was cached.
- * The same URL, retried, returns the grid -- ten lockups, every time, across six
- * consecutive requests from this machine.
+ * The retry is here because these pages fail one at a time, not all at once, and
+ * a lone empty tab is the failure mode that hurts most: the deployment came up
+ * serving streams=8, clips=7, videos=0 for half an hour because one request to
+ * the smallest page failed at cold start and the result was cached. The same URL,
+ * retried, returns the grid -- ten lockups, every time, across six consecutive
+ * requests from this machine.
  *
- * 250 ms is deliberate. YouTube rate-limits by request rate, and the three tabs
+ * The retry is now conditional on the caller's deadline. An unbounded retry is
+ * what pushed the function past its budget and took all three tabs down at once.
+ *
+ * 250 ms is deliberate. YouTube rate-limits by request rate, and the requests
  * already go out together, so a fast second attempt is not meaningfully worse
  * than the first.
  */
 const RETRY_DELAY_MS = 250;
 
-async function fetchOnce(url: string): Promise<string | null> {
+async function fetchOnce(url: string, timeoutMs: number): Promise<string | null> {
+  if (timeoutMs <= 0) return null;
+
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       headers: {
@@ -306,12 +333,17 @@ async function fetchOnce(url: string): Promise<string | null> {
   }
 }
 
-async function fetchText(url: string): Promise<string | null> {
-  const first = await fetchOnce(url);
+async function fetchText(url: string, deadline = Date.now() + TIMEOUT_MS): Promise<string | null> {
+  const first = await fetchOnce(url, Math.min(TIMEOUT_MS, remaining(deadline)));
   if (first !== null) return first;
 
+  const left = remaining(deadline);
+  // A retry only counts if there is room for the delay and a real attempt after
+  // it. Starting one that cannot finish is how a slow page becomes no page.
+  if (left <= RETRY_DELAY_MS + 500) return null;
+
   await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-  return fetchOnce(url);
+  return fetchOnce(url, Math.min(TIMEOUT_MS, remaining(deadline)));
 }
 
 function plainText(node: unknown): string | null {
@@ -491,8 +523,8 @@ function toItem(entry: LockupEntry, live: boolean): ContentItem {
 }
 
 /** Newest broadcasts, live state included. */
-async function readStreams(): Promise<ContentItem[]> {
-  const html = await fetchText(STREAMS_TAB);
+async function readStreams(deadline: number): Promise<ContentItem[]> {
+  const html = await fetchText(STREAMS_TAB, deadline);
   if (!html) return [];
 
   return parseLockups(html).slice(0, STREAM_LIMIT).map((entry) => toItem(entry, entry.live));
@@ -506,8 +538,8 @@ async function readStreams(): Promise<ContentItem[]> {
  * that grid also reads "Streaming", and a premiere is not something this section
  * should list as a finished video.
  */
-async function readVideos(): Promise<ContentItem[]> {
-  const html = await fetchText(VIDEOS_TAB);
+async function readVideos(deadline: number): Promise<ContentItem[]> {
+  const html = await fetchText(VIDEOS_TAB, deadline);
   if (!html) return [];
 
   const entries = parseLockups(html).filter((entry) => !STREAMING_LABEL.test(entry.age ?? ""));
@@ -701,11 +733,17 @@ function seedSeenClips(): void {
 
 seedSeenClips();
 
-async function readClips(): Promise<ContentItem[]> {
+async function readClips(deadline: number): Promise<ContentItem[]> {
   // Fetches the ten searches together rather than in sequence: they are unrelated
   // requests to unrelated pages, so serialising them would multiply the latency
   // of the slowest tab by ten. A partial failure is normal here, not exceptional.
-  const pages = await Promise.all(SEARCH_QUERIES.map((query) => fetchText(searchPage(query))));
+  //
+  // Ten is the most this can afford. Each of these is a separate YouTube page
+  // fetch and the whole call has to land inside the function budget, so the count
+  // is a budget decision and not only a coverage one.
+  const pages = await Promise.all(
+    SEARCH_QUERIES.map((query) => fetchText(searchPage(query), deadline)),
+  );
 
   // Deduplicated by video id, keeping each video's first sighting. Ten searches
   // overlap heavily — the same clip came back from four of them — so without
@@ -853,14 +891,18 @@ export default async function handler(req: UploadsRequest, res: UploadsResponse)
     }
   }
 
+  // One deadline for the whole call. Started before the first fetch so the tabs
+  // share the budget rather than each assuming all of it.
+  const deadline = Date.now() + HANDLER_DEADLINE_MS;
+
   // Three independent surfaces, fetched together rather than in sequence: they
   // are unrelated requests to unrelated pages, so serialising them would triple
   // the latency for no benefit. A partial failure is kept, not thrown away,
   // because two working tabs beat an error page.
   const [freshStreams, freshVideos, freshClips] = await Promise.all([
-    readStreams(),
-    readVideos(),
-    readClips(),
+    readStreams(deadline),
+    readVideos(deadline),
+    readClips(deadline),
   ]);
 
   if (freshStreams.length === 0 && freshVideos.length === 0 && freshClips.length === 0) {
