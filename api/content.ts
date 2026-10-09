@@ -64,6 +64,8 @@
  * Her own uploads are excluded, since those are already in the other two tabs.
  */
 
+import SEED_CLIPS from "./clip-seed";
+
 interface UploadsRequest {
   method?: string;
   url?: string;
@@ -168,13 +170,13 @@ const AGE =
   /(?:streaming\s*)?(?:berakhir\s*)?(?:·\s*)?(beberapa\s+detik|\d+\s*(?:detik|dtk|menit|mnt|jam|h|hari|hr|d|minggu|mgg|pekan|wk|bulan|bln|tahun|thn)?)\s*(?:yang\s+lalu|lalu)/i;
 
 /**
- * Unit normalisation.
+ * Unit normalisation, for the channel grids.
  *
- * "h" is hari, not jam. The grids write jam out in full ("1 jam lalu", "18 jam
- * lalu") and abbreviate hari to a bare "h", which reads like an English hour
- * abbreviation and is the single easiest thing to get backwards here. Caught by
- * checking labels against each video's measured endTimestamp: "5 h lalu" was
- * five days old, not five hours.
+ * "h" is hari here, not jam. The grids write jam out in full ("1 jam lalu", "18
+ * jam lalu") and abbreviate hari to a bare "h", which reads like an English hour
+ * abbreviation and is the single easiest thing to get backwards. Caught by
+ * checking labels against each video's measured endTimestamp: "5 h lalu" was five
+ * days old, not five hours.
  *
  * Single-letter "m" is left out on purpose: it could be menit or bulan, and
  * guessing between those two is not a trade worth making, so an unmapped unit
@@ -202,6 +204,12 @@ const AGE_UNITS: Record<string, string> = {
 
 /**
  * Normalise one age label, e.g. "1 h lalu" into "1 hari lalu".
+ *
+ * "h" is hari on every surface. Checked against the video's own publishDate: the
+ * newest clip carried "3 h lalu" and its publishDate is 85 hours earlier, which is
+ * 3.5 days, so the label rounds the day and means three days. Reading that "h" as
+ * hours would put a three-day-old clip in the same bucket as one from last month.
+ * The grids spell out jam ("1 jam lalu") and abbreviate hari to a bare "h".
  *
  * Returns null when the unit is not one this file is willing to map, so the card
  * shows nothing rather than something that could be read as a different amount of
@@ -651,13 +659,55 @@ function parseSearchResults(html: string): SearchEntry[] {
 const seenClips = new Map<string, { item: ContentItem; at: number }>();
 const SEEN_CLIP_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/*
+ * Seed the kept set from the committed list, so a cold instance is not at search's
+ * mercy.
+ *
+ * A union in module scope fixes a warm instance and does nothing for a cold one,
+ * and cold is what the deployment does most of the time. The clip that prompted
+ * this is the clearest evidence: it surfaces under exactly one of the ten
+ * queries, from this network, and under none of them from the deployment's. Same
+ * code, both reachable, opposite answers.
+ *
+ * Seed entries are marked so they can be recognised later: a search hit replaces
+ * its metadata, but nothing removes a seed that this pass failed to find.
+ */
+function seedSeenClips(): void {
+  for (const seed of SEED_CLIPS) {
+    if (seenClips.has(seed.videoId)) continue;
+    seenClips.set(seed.videoId, {
+      item: {
+        videoId: seed.videoId,
+        url: `https://www.youtube.com/watch?v=${seed.videoId}`,
+        title: seed.title,
+        // The thumbnail URL carries a signature that expires, so the wall falls
+        // back to the stable path and the card's own fallback chain covers it.
+        thumbnail: "",
+        live: false,
+        viewers: null,
+        // Normalised here, not stored normalised: the seed holds YouTube's own
+        // label exactly as captured, and "3 h lalu" has to become
+        // "3 hari lalu" before ageToSeconds can place it. Left raw it would
+        // fail, sort to the end of the wall, and get sliced off -- which is
+        // exactly what happened.
+        age: seed.age ? parseAge(seed.age) : null,
+        duration: seed.duration,
+        channel: seed.channel,
+      },
+      at: Date.now(),
+    });
+  }
+}
+
+seedSeenClips();
+
 async function readClips(): Promise<ContentItem[]> {
-  // Fetches the six searches together rather than in sequence: they are unrelated
+  // Fetches the ten searches together rather than in sequence: they are unrelated
   // requests to unrelated pages, so serialising them would multiply the latency
-  // of the slowest tab by six. A partial failure is normal here, not exceptional.
+  // of the slowest tab by ten. A partial failure is normal here, not exceptional.
   const pages = await Promise.all(SEARCH_QUERIES.map((query) => fetchText(searchPage(query))));
 
-  // Deduplicated by video id, keeping each video's first sighting. Six searches
+  // Deduplicated by video id, keeping each video's first sighting. Ten searches
   // overlap heavily — the same clip came back from four of them — so without
   // this the wall would be mostly repeats of whatever ranked highest.
   const byId = new Map<string, { entry: SearchEntry; position: number }>();
