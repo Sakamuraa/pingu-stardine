@@ -1,28 +1,38 @@
 import { CalendarBlank, Clock } from "@phosphor-icons/react";
 
 import { ActionLink } from "@/components/Action";
-import { Reveal } from "@/lib/reveal";
 import { Thumb } from "@/components/Uploads";
+import { Reveal } from "@/lib/reveal";
 import type { ContentItem } from "@/lib/useContent";
 
 /**
  * The next stream.
  *
- * Kept visually apart from the broadcast cards on purpose. A live card says "now"
- * and a finished one says "then"; this says "not yet", and rendering it as a
- * third card in the same grid would blur exactly the distinction it exists to
- * make. So it is a framed panel with a calendar, not a thumbnail tile.
+ * Kept apart from the broadcast cards on purpose. A live card says "now" and a
+ * finished one says "then"; this says "not yet", and rendering it as one more
+ * tile in the same grid would blur exactly the distinction it exists to make.
  *
- * No countdown. The /streams grid carries a scheduled item but not its start
- * time in anything this endpoint reads, so a ticking clock would have to be built
- * from a number that is not there. The honest thing is to link to the stream,
- * where YouTube shows the real time, and say which channel it is on.
+ * No countdown. The /streams grid carries a scheduled item but not its start time
+ * in anything this endpoint reads, so a ticking clock would have to be built from
+ * a number that is not there. The honest thing is to link to the stream, where
+ * YouTube shows the real time.
  *
  * `demoChannel` is what stops this from quietly lying. When the site has nothing
- * scheduled of its own, the card shows a stream from another channel, and it
- * names that channel rather than borrowing the schedule as if it were the site's
- * own. A visitor asked "when is the next stream" and shown a stranger's schedule
- * with no label has been given the wrong answer in a way that looks right.
+ * scheduled of its own the card shows a stream from another channel, and it names
+ * that channel rather than borrowing the schedule as if it were the site's own.
+ * Asked "when is the next stream" and shown a stranger's schedule unlabelled is
+ * the wrong answer in a shape that looks right.
+ *
+ * Two colour decisions worth stating, both of which were wrong first:
+ *
+ * The wash over the thumbnail is a fixed ink, not `--cocoa` or `--fg`. Both of
+ * those flip between themes here -- `--cocoa` is near-black in the light theme
+ * and near-white in the dark one -- so a wash built on either lightens the image
+ * in one theme and darkens it in the other. An overlay's only job is to darken.
+ *
+ * The badge is `--glow` on a literal dark ink rather than on a token, because
+ * `--glow` is the one accent that does not change between themes: whatever sits
+ * on it has to stay legible in both.
  */
 export function UpcomingCard({ item }: { item: ContentItem | null }) {
   if (!item) return null;
@@ -33,22 +43,19 @@ export function UpcomingCard({ item }: { item: ContentItem | null }) {
     <Reveal amount={0.25}>
       <article
         aria-labelledby="upcoming-heading"
-        className="mt-10 overflow-hidden rounded-card border border-gold/40 bg-surface-deep/40"
+        className="mt-10 overflow-hidden rounded-card border border-glow/45 bg-surface"
       >
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
           <div className="w-full shrink-0 sm:w-56">
-            <div className="relative overflow-hidden rounded-card">
+            <div className="relative overflow-hidden rounded-btn">
               <Thumb item={item} />
               {/*
                 Dimming rather than hiding. The thumbnail is the reason to click,
                 so it stays; the wash plus the badge is what stops it reading as a
                 stream that is already running.
               */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 bg-ground/45"
-              />
-              <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-btn bg-gold px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-ground">
+              <div aria-hidden="true" className="absolute inset-0 bg-[#0b1424]/55" />
+              <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-btn bg-glow px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-[#14203a]">
                 <CalendarBlank size={13} weight="fill" aria-hidden="true" />
                 Mendatang
               </span>
@@ -64,12 +71,12 @@ export function UpcomingCard({ item }: { item: ContentItem | null }) {
             </h3>
 
             <p className="mt-2 flex items-center gap-2 text-sm text-fg-muted">
-              <Clock size={15} aria-hidden="true" className="text-gold" />
+              <Clock size={15} aria-hidden="true" className="text-glow" />
               {isDemo ? (
                 <>
                   Dijadwalkan di channel{" "}
-                  <span className="font-semibold text-fg">{item.demoChannel}</span>,{" "}
-                  bukan channel ini.
+                  <span className="font-semibold text-fg">{item.demoChannel}</span>, bukan
+                  channel ini.
                 </>
               ) : (
                 <>Stream berikutnya sudah dijadwalkan.</>
