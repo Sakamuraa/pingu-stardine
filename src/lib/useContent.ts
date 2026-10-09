@@ -13,6 +13,10 @@ export type ContentItem = {
   duration: string | null;
   /** Publishing channel, on the clips tab only. */
   channel?: string;
+  /** Scheduled but not started. Separate from live: one is now, one is later. */
+  upcoming?: boolean;
+  /** Set when the stream belongs to another channel, so a card can say so. */
+  demoChannel?: string;
 };
 
 type ApiPayload = {
@@ -22,12 +26,16 @@ type ApiPayload = {
   streams: ContentItem[];
   videos: ContentItem[];
   clips: ContentItem[];
+  /** Scheduled broadcast, or null. See SNAPSHOT_UPCOMING. */
+  upcoming?: ContentItem | null;
 };
 
 type State = {
   streams: ContentItem[];
   videos: ContentItem[];
   clips: ContentItem[];
+  /** Scheduled but not started, when there is one. */
+  upcoming: ContentItem | null;
   /** True when at least one broadcast is confirmed live. */
   live: boolean;
   /** "api" once a response lands, "snapshot" while on the bundled copy. */
@@ -188,6 +196,11 @@ const INITIAL: State = {
   streams: [],
   videos: [],
   clips: [],
+  // Null until the endpoint answers, and deliberately not a bundled copy. Every
+  // other list falls back to the snapshot because a slightly old upload is still
+  // true; a scheduled stream is a claim about a future that can be cancelled, so
+  // the card waits for the endpoint rather than ageing in place.
+  upcoming: null,
   live: false,
   source: "loading",
   error: null,
@@ -261,6 +274,12 @@ export function useContent(): State {
            */
           videos: pick(payload.videos, prev.videos.length ? prev.videos : SNAPSHOT_VIDEOS),
           clips: pick(payload.clips, prev.clips.length ? prev.clips : SNAPSHOT_CLIPS),
+
+          // The endpoint decides whether anything is scheduled, so its answer
+          // replaces the bundled copy outright rather than falling back -- a
+          // stale "upcoming" card is a claim about the future, and the one thing
+          // in this payload that must never outlive its truth.
+          upcoming: payload.upcoming ?? null,
           live: payload.streams.some((item) => item.live),
           source: "api",
           error: null,
@@ -269,9 +288,14 @@ export function useContent(): State {
         if (controller.signal.aborted) return;
         failed = true;
         setState({
-          streams: SNAPSHOT_STREAMS,
-          videos: SNAPSHOT_VIDEOS,
-          clips: SNAPSHOT_CLIPS,
+streams: SNAPSHOT_STREAMS,
+        videos: SNAPSHOT_VIDEOS,
+        clips: SNAPSHOT_CLIPS,
+        // No snapshot copy on this path. Every other list falls back because a
+        // slightly old upload is still true; a scheduled stream is a claim about
+        // a future that may have been cancelled, so the fallback drops the card
+        // rather than keep it.
+        upcoming: null,
           live: false,
           source: "snapshot",
           error: error instanceof Error ? error.message : String(error),
