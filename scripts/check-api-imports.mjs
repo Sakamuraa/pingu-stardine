@@ -19,7 +19,7 @@
  * So the check that would have caught it is a check that does not exist yet.
  * This is it. Run with `npm run check:api`.
  */
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +31,29 @@ const BARE_RELATIVE = /(?:^|\s)(?:import|export)[^'"]*from\s*["'](\.[^"']*)["']/
 const HAS_EXTENSION = /\.(m?[jt]sx?|json|css|node)$/;
 
 const offenders = [];
+
+/**
+ * Every .ts in api/ becomes its own serverless function.
+ *
+ * A data module parked there exports no handler, so it cannot serve a request --
+ * and whatever that does to the build is not something to reason about in the
+ * abstract. Data belongs in lib/, which is not a functions folder.
+ */
+const dataInApi = [];
+for (const entry of readdirSync(API_DIR, { withFileTypes: true })) {
+  if (entry.isFile() && /\.tsx?$/.test(entry.name)) {
+    const full = join(API_DIR, entry.name);
+    const source = readFileSync(full, "utf8");
+    if (!/\bexport\s+default\b/.test(source)) {
+      dataInApi.push(entry.name);
+    }
+  }
+}
+if (dataInApi.length) {
+  console.error("File(s) in api/ with no default export -- each api/*.ts is deployed as its own function:\n");
+  for (const f of dataInApi) console.error(`  api/${f}`);
+  console.error("\n  Move data modules to lib/ and import them with an explicit extension.\n");
+}
 
 function walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -74,4 +97,8 @@ if (offenders.length > 0) {
   process.exit(1);
 }
 
-console.log(`api/ imports: all relative specifiers carry an extension (${API_DIR.slice(ROOT.length + 1)})`);
+if (dataInApi.length === 0 && offenders.length === 0) {
+  console.log(`api/: every function has a default export, every relative specifier has an extension`);
+} else {
+  process.exit(1);
+}

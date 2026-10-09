@@ -65,24 +65,30 @@
  */
 
 /*
- * The extension is required, not optional.
+ * Two things about this import, both learned the hard way.
  *
- * package.json sets "type": "module", so the api/ files are native ESM on Vercel,
- * and native ESM does not do the extensionless resolution that TypeScript,
- * bundlers and most local runners do. Written as "./clip-seed" this import was
- * unresolvable at runtime: the module threw while loading, before the handler was
- * ever called, and the endpoint answered 500 with an empty body in ~450ms having
- * attempted no fetch. No fetch means no LastGood snapshot and no retry could
- * rescue it either, and /konten/clips fell through to its two-entry snapshot.
+ * The extension is required. package.json sets "type": "module", so the api/
+ * files are native ESM on Vercel, and native ESM does not do the extensionless
+ * resolution that TypeScript, bundlers and most local runners do. Written as
+ * "./clip-seed" it threw while the module loaded, before the handler was called,
+ * and the endpoint answered 500 with an empty body in ~450ms having attempted no
+ * fetch -- so no LastGood snapshot and no retry could rescue it either.
  *
- * Nothing local caught it. `tsc -b` accepts the bare specifier --
- * moduleResolution "bundler" resolves it, and allowImportingTsExtensions makes
- * the .ts form legal at the same time. eslint has no rule for it without the
- * import plugin. And a local runner that appends .ts to relative specifiers
- * resolves it happily, which is exactly what the first harness for this bug did.
- * scripts/check-api-imports.mjs exists for the same reason; run `npm run check:api`.
+ * The file lives in lib/, not beside this one. Vercel treats every file in api/
+ * as its own serverless function entry, so a plain data module parked there
+ * becomes a fifth function that exports no handler. It is not supposed to break
+ * its neighbour, and the neighbour stayed broken anyway; keeping data out of the
+ * functions folder removes the whole class of problem rather than arguing about
+ * whether this particular arrangement was safe.
+ *
+ * Neither mistake was catchable locally. `tsc -b` accepts the bare specifier
+ * (moduleResolution "bundler" resolves it, allowImportingTsExtensions makes the
+ * .ts form legal at the same time). eslint has no rule for it without the import
+ * plugin. And the first local harness appended .ts to relative specifiers --
+ * reproducing the bundler's behaviour -- so it reported the broken endpoint as
+ * healthy. scripts/check-api-imports.mjs exists for that reason; `npm run check:api`.
  */
-import SEED_CLIPS from "./clip-seed.ts";
+import SEED_CLIPS from "../lib/clip-seed.ts";
 
 interface UploadsRequest {
   method?: string;
