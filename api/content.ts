@@ -64,7 +64,25 @@
  * Her own uploads are excluded, since those are already in the other two tabs.
  */
 
-import SEED_CLIPS from "./clip-seed";
+/*
+ * The extension is required, not optional.
+ *
+ * package.json sets "type": "module", so the api/ files are native ESM on Vercel,
+ * and native ESM does not do the extensionless resolution that TypeScript,
+ * bundlers and most local runners do. Written as "./clip-seed" this import was
+ * unresolvable at runtime: the module threw while loading, before the handler was
+ * ever called, and the endpoint answered 500 with an empty body in ~450ms having
+ * attempted no fetch. No fetch means no LastGood snapshot and no retry could
+ * rescue it either, and /konten/clips fell through to its two-entry snapshot.
+ *
+ * Nothing local caught it. `tsc -b` accepts the bare specifier --
+ * moduleResolution "bundler" resolves it, and allowImportingTsExtensions makes
+ * the .ts form legal at the same time. eslint has no rule for it without the
+ * import plugin. And a local runner that appends .ts to relative specifiers
+ * resolves it happily, which is exactly what the first harness for this bug did.
+ * scripts/check-api-imports.mjs exists for the same reason; run `npm run check:api`.
+ */
+import SEED_CLIPS from "./clip-seed.ts";
 
 interface UploadsRequest {
   method?: string;
