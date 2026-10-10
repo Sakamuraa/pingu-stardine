@@ -306,6 +306,13 @@ function ChatPanel({
    * Each row carries its position in the recording, so the target is found by
    * looking at the DOM rather than by arithmetic on an index that shifts as more
    * arrive. A live stream has no fixed positions and is left alone.
+   *
+   * The scroll is applied to the log's own scrollTop, not with scrollIntoView.
+   * scrollIntoView walks up to every scrollable ancestor and scrolls each one, so
+   * on a page where the player and the log sit side by side it moved the document
+   * too — the reader was yanked away from the video by chat arriving, which is the
+   * opposite of following the playhead. offsetTop is already relative to the log,
+   * so the arithmetic is the same and the page stays put.
    */
   useEffect(() => {
     if (!started || mode !== "replay") return;
@@ -327,7 +334,17 @@ function ChatPanel({
       }
     }
 
-    if (nearest) nearest.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (!nearest) return;
+
+    // Centre the row inside the box by hand: half the box's height, minus half the
+    // row's, plus whatever the row sits at within the log.
+    const target =
+      nearest.offsetTop - log.clientHeight / 2 + nearest.offsetHeight / 2;
+
+    // Clamped, because a transcript can be shorter than the box and scrollTop
+    // would otherwise be set to a negative number, which the browser ignores and
+    // leaves the log pinned to the top for no reason.
+    log.scrollTop = Math.max(0, Math.min(target, log.scrollHeight - log.clientHeight));
   }, [currentTime, mode, started, visible.length]);
 
   return (
