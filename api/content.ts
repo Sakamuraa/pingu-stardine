@@ -1049,8 +1049,8 @@ let lastGood: {
  * already expired and the next real fetch would have succeeded.
  */
 const MEMORY_TTL_PARTIAL_MS = 60 * 1000;
-const MEMORY_TTL_LIVE_MS = 10 * 60 * 1000;
-const MEMORY_TTL_QUIET_MS = 30 * 60 * 1000;
+const MEMORY_TTL_LIVE_MS = 30 * 1000;
+const MEMORY_TTL_QUIET_MS = 60 * 1000;
 /**
  * Scheduled but not started.
  *
@@ -1079,7 +1079,7 @@ const MEMORY_TTL_UPCOMING_MS = 20 * 1000;
  * window either -- those are measured from `publishedAt` on the client -- so this
  * governs when a new upload appears, not how old the cards claim to be.
  */
-const QUIET_CACHE = "public, s-maxage=900, stale-while-revalidate=1800";
+const QUIET_CACHE = "public, s-maxage=60, stale-while-revalidate=60";
 
 
 async function readContent(req: UploadsRequest, res: UploadsResponse): Promise<void> {
@@ -1107,11 +1107,11 @@ async function readContent(req: UploadsRequest, res: UploadsResponse): Promise<v
       res.setHeader(
         "Cache-Control",
         !lastGood.complete
-          ? "public, s-maxage=60, stale-while-revalidate=300"
+          ? "public, s-maxage=60, stale-while-revalidate=60"
           : lastGood.upcoming
-            ? "public, s-maxage=20, stale-while-revalidate=45"
+            ? "public, s-maxage=20, stale-while-revalidate=20"
             : lastGood.liveCount > 0
-              ? "public, s-maxage=300, stale-while-revalidate=600"
+              ? "public, s-maxage=30, stale-while-revalidate=30"
               : QUIET_CACHE,
       );
       res.setHeader("X-Data-Source", lastGood.complete ? "memory" : "memory-partial");
@@ -1141,12 +1141,12 @@ async function readContent(req: UploadsRequest, res: UploadsResponse): Promise<v
     // Everything failed. A stale copy is still true data and beats an error
     // page, as long as the caller is told it is stale.
     if (lastGood) {
-      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=600");
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=30");
       res.setHeader("X-Data-Source", "stale");
       res.status(200).json({ ...lastGood.payload, stale: true });
       return;
     }
-    res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=300");
+    res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=30");
     res.status(503).json({ error: "could not read any source" });
     return;
   }
@@ -1208,11 +1208,11 @@ async function readContent(req: UploadsRequest, res: UploadsResponse): Promise<v
   res.setHeader(
     "Cache-Control",
     !complete
-      ? "public, s-maxage=60, stale-while-revalidate=300"
+      ? "public, s-maxage=60, stale-while-revalidate=60"
       : upcoming
-        ? "public, s-maxage=20, stale-while-revalidate=45"
+        ? "public, s-maxage=20, stale-while-revalidate=20"
         : liveCount > 0
-          ? "public, s-maxage=300, stale-while-revalidate=600"
+          ? "public, s-maxage=30, stale-while-revalidate=30"
           : QUIET_CACHE,
   );
   res.setHeader("X-Data-Source", complete ? "live" : "partial");
