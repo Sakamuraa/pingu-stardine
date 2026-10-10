@@ -33,7 +33,7 @@ export const site = {
    */
   url: "https://pingu.vtube-info.xyz",
   locale: "id_ID",
-  avatar: "/media/avatar-youtube.webp",
+  avatar: "/og-image.png",
   /**
    * Alt text for the channel avatar.
    *
