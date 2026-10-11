@@ -4,6 +4,7 @@ import { ActionLink } from "@/components/Action";
 import { Thumb } from "@/components/Uploads";
 import { Reveal } from "@/lib/reveal";
 import type { ContentItem } from "@/lib/useContent";
+import { useCountdown, formatCountdown, formatInZone, formatLocal } from "@/lib/useCountdown";
 
 /**
  * The next stream.
@@ -19,8 +20,8 @@ import type { ContentItem } from "@/lib/useContent";
  *
  * Two colour decisions worth stating, both of which were wrong first:
  *
- * The wash over the thumbnail is a fixed ink, not `--cocoa` or `--fg`. Both of
- * those flip between themes here -- `--cocoa` is near-black in the light theme
+ * The wash over the thumbnail is a fixed ink, not `--obsidian` or `--fg`. Both of
+ * those flip between themes here -- `--obsidian` is near-black in the light theme
  * and near-white in the dark one -- so a wash built on either lightens the image
  * in one theme and darkens it in the other. An overlay's only job is to darken.
  *
@@ -29,6 +30,7 @@ import type { ContentItem } from "@/lib/useContent";
  * on it has to stay legible in both.
  */
 export function UpcomingCard({ item }: { item: ContentItem | null }) {
+  const ms = useCountdown(item?.scheduledStart);
   if (!item) return null;
 
   return (
@@ -62,14 +64,29 @@ export function UpcomingCard({ item }: { item: ContentItem | null }) {
               {item.title}
             </h3>
 
-            <p className="mt-2 flex items-center gap-2 text-sm text-fg-muted">
-              <Clock size={15} aria-hidden="true" className="text-glow" />
-              <>Stream berikutnya sudah dijadwalkan.</>
-            </p>
-
-            <p className="mt-2 text-sm leading-relaxed text-fg-subtle">
-              "Waktu mulainya ada di halaman stream-nya."
-            </p>
+            {item.scheduledStart ? (
+              <>
+                <p className="mt-2 flex items-center gap-2 text-sm font-medium text-fg">
+                  <Clock size={15} aria-hidden="true" className="text-glow" />
+                  {ms !== null && ms > 0 ? `Mulai dalam ${formatCountdown(ms)}` : "Segera dimulai"}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-fg-subtle">
+                  {formatInZone(item.scheduledStart, "Asia/Jakarta")} WIB ·{" "}
+                  {formatInZone(item.scheduledStart, "Asia/Tokyo")} JST
+                  <span className="mt-0.5 block">Waktu kamu: {formatLocal(item.scheduledStart)}</span>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 flex items-center gap-2 text-sm text-fg-muted">
+                  <Clock size={15} aria-hidden="true" className="text-glow" />
+                  Stream berikutnya sudah dijadwalkan.
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-fg-subtle">
+                  Waktu mulainya ada di halaman stream-nya.
+                </p>
+              </>
+            )}
 
             <div className="mt-5">
               <ActionLink href={item.url} external variant="quiet">
