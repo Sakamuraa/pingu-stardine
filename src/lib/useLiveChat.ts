@@ -74,37 +74,24 @@ type State = {
 /*
  * How long to wait between live polls.
  *
- * This used to be a flat fifteen seconds while the comment claimed the endpoint
- * advertised its own. It did send the figure -- `timeoutMs`, the deadline YouTube
- * puts on the continuation, which is its own knowledge of when the next message can
- * exist -- and the client threw it away. Fifteen seconds against a stream where
- * messages arrive every few is why chat looked stuck.
- *
- * The endpoint's number is used instead, bounded on both sides. The floor stops a
- * broadcast that keeps saying "come back in one second" from becoming a request
- * per second, which is a billed serverless call each time and is also not how
- * often chat actually moves. The ceiling covers an endpoint that reports no
- * deadline at all, which is the case for a quiet stream. Without the ceiling a
- * missing value would mean never asking again.
+ * YouTube hands back `timeoutMs`, its own deadline on the continuation. On an
+ * active stream that is often ~10s, which is far slower than chat actually moves
+ * -- new lines then showed up about ten seconds after they did on YouTube. So the
+ * deadline is clamped rather than taken as-is: capped above so live chat stays
+ * within a few seconds of the real thing, and floored below so a stream that keeps
+ * saying "come back in one second" does not become a request per second (each poll
+ * is a billed serverless call). Polling is paused while the tab is hidden, so an
+ * idle viewer costs nothing regardless.
  */
-const POLL_FLOOR_MS = 3_000;
-const POLL_CEIL_MS = 12_000;
+const POLL_MIN_MS = 2_000;
+const POLL_MAX_MS = 4_000;
 
-/** Used when the endpoint gives no deadline, or one outside the bounds. */
-const POLL_DEFAULT_MS = 6_000;
+/** Used when the endpoint gives no usable deadline. */
+const POLL_DEFAULT_MS = 3_000;
 
-/**
- * The wait before the next poll, from the deadline the last response carried.
- *
- * A value that is not a positive number, or one that lands outside the bounds, is
- * replaced rather than clamped. Clamping a three hour deadline to twelve seconds
- * would turn a stream that is genuinely quiet into a poll a second forever, which
- * is the failure the ceiling exists to prevent.
- */
 function nextPollDelay(timeoutMs: number | null | undefined): number {
   if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs)) return POLL_DEFAULT_MS;
-  if (timeoutMs < POLL_FLOOR_MS || timeoutMs > POLL_CEIL_MS) return POLL_DEFAULT_MS;
-  return timeoutMs;
+  return Math.min(POLL_MAX_MS, Math.max(POLL_MIN_MS, timeoutMs));
 }
 
 /** Stop after this many consecutive failures rather than hammering a dead stream. */
@@ -243,25 +230,54 @@ export function useLiveChat(videoId: string, currentTime: number): State {
     if (!videoId) return;
 
     const controller = new AbortController();
+    let cancelled = false;
 
     void (async () => {
-      try {
-        const res = await fetch(`/api/chat?id=${videoId}`, { signal: controller.signal });
-        if (!res.ok) throw new Error(`api returned ${res.status}`);
+      // Detection is retried, not latched. The endpoint can answer with a non-mode
+      // -- "unavailable" / "timeout" / "error", or a bare mode="auto" echo when it
+      // could not read the watch page -- and the two effects below run only for a
+      // detected value of exactly "live" or "replay". Storing anything else (as
+      // `payload.mode ?? ...` once did, which could keep the literal "auto") left
+      // the panel on "loading" with nothing driving it and no way out. So an
+      // unusable answer waits and asks again rather than being kept.
+      for (let attempt = 0; attempt < 6 && !cancelled; attempt++) {
+        try {
+          const res = await fetch(`/api/chat?id=${videoId}`, { signal: controller.signal });
+          if (!res.ok) throw new Error(`api returned ${res.status}`);
 
-        const payload = (await res.json()) as Payload;
-        const resolved: Mode = payload.mode ?? (payload.isLive ? "live" : "replay");
+          const payload = (await res.json()) as Payload;
 
-        setDetected(resolved);
-        setMode(resolved);
-        setTitle(payload.title ?? null);
-      } catch {
-        if (controller.signal.aborted) return;
-        setStatus("unavailable");
+          // A real read is "live" or "replay". A live stream between messages still
+          // reports isLive, so treat that as live too. Anything else is not an
+          // answer yet.
+          const resolved: Mode | null =
+            payload.mode === "live" || payload.mode === "replay"
+              ? payload.mode
+              : payload.isLive
+                ? "live"
+                : null;
+
+          if (resolved) {
+            setDetected(resolved);
+            setMode(resolved);
+            setTitle(payload.title ?? null);
+            return;
+          }
+        } catch {
+          if (controller.signal.aborted) return;
+        }
+
+        // Not an answer: wait a moment and ask again instead of giving up.
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
+
+      if (!cancelled) setStatus("unavailable");
     })();
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [videoId, clear]);
 
   /* -------------------------------------------------------------- *
@@ -473,6 +489,27 @@ modeRef.current = "live";
       }
 
       /*
+       * A jump back to before the earliest line held. The forward reader never
+       * pages backward, so a scrub to earlier than `from` would leave the window
+       * around the playhead empty -- the held chat starts minutes after where the
+       * video now is, and the panel reads "belum ada chat di menit ini" over a
+       * stretch that does have chat. Re-seek from there and keep what is held, the
+       * mirror of the forward jump above.
+       */
+      if (loaded.current && target < from.current - AHEAD_SECONDS) {
+        void (async () => {
+          try {
+            await loadReplay(target - BEHIND_SECONDS, false);
+          } catch {
+            if (abortRef.current?.signal.aborted) return;
+            failures.current += 1;
+            if (failures.current >= MAX_FAILURES) setStatus("unavailable");
+          }
+        })();
+        return;
+      }
+
+      /*
        * Otherwise keep reading forward, so the log fills out as the video plays on
        * and the scroll has something behind the playhead. This is what replaces the
        * load-more button: there is no button because there is nothing to press.
@@ -487,7 +524,15 @@ modeRef.current = "live";
        * always something past it and never a flood.
        */
       if (target < to.current - AHEAD_SECONDS) return;
-      if (!cursor.current || seen.current.size >= MESSAGE_LIMIT) return;
+      // Keep paging as long as the recording has more. The ceiling on how many
+      // lines are *kept* is the slice(-MESSAGE_LIMIT) in loadReplay; it must not
+      // double as a ceiling on how far the video may be followed. The old
+      // `seen.size >= MESSAGE_LIMIT` guard here froze the chat partway through any
+      // busy stream: once that many distinct lines had been seen -- a few minutes
+      // in -- the playhead ran past the end of what was held and no further page
+      // was ever pulled. Paging is paced by playback anyway, since a page spans
+      // many minutes, so there is no flood to guard against.
+      if (!cursor.current) return;
 
       void (async () => {
         try {
